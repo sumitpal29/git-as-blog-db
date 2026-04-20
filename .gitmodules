@@ -1,0 +1,3 @@
+[submodule "projects"]
+	path = projects
+	url = git@github.com:sumitpal29/sumit-pal-portfolio-database.git
