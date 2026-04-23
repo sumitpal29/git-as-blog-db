@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
-import { FolderPlus, Folder, Trash2 } from 'lucide-react';
+import { FolderPlus, Folder, Trash2, Pencil, Check, X } from 'lucide-react';
 
 export default function ProjectList() {
   const [projects, setProjects] = useState([]);
   const [newProjectName, setNewProjectName] = useState('');
   const [loading, setLoading] = useState(true);
+  const [renamingProject, setRenamingProject] = useState(null);
+  const [renameValue, setRenameValue] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -26,7 +28,7 @@ export default function ProjectList() {
 
   const handleDelete = async (e, projectName) => {
     e.stopPropagation();
-    if (!window.confirm(`Are you sure you want to delete project "${projectName}"? This action cannot be undone.`)) return;
+    if (!window.confirm(`Delete project "${projectName}"? This cannot be undone.`)) return;
     try {
       const res = await api.projects.delete(projectName);
       if (res.success) {
@@ -35,7 +37,37 @@ export default function ProjectList() {
         alert(res.error || 'Failed to delete project');
       }
     } catch (err) {
+      console.error(err);
       alert('Failed to delete project');
+    }
+  };
+
+  const startRename = (e, projectName) => {
+    e.stopPropagation();
+    setRenamingProject(projectName);
+    setRenameValue(projectName);
+  };
+
+  const cancelRename = (e) => {
+    e?.stopPropagation();
+    setRenamingProject(null);
+    setRenameValue('');
+  };
+
+  const confirmRename = async (e, oldName) => {
+    e.stopPropagation();
+    const trimmed = renameValue.trim();
+    if (!trimmed || trimmed === oldName) { cancelRename(); return; }
+    try {
+      const res = await api.projects.rename(oldName, trimmed);
+      if (res.success) {
+        setProjects(projects.map(p => (p === oldName ? trimmed : p)));
+        setRenamingProject(null);
+      } else {
+        alert(res.error || 'Failed to rename');
+      }
+    } catch (err) {
+      alert('Failed to rename project');
     }
   };
 
@@ -69,6 +101,7 @@ export default function ProjectList() {
               placeholder="New project name..."
               value={newProjectName}
               onChange={(e) => setNewProjectName(e.target.value)}
+              maxLength={60}
               className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
             />
             <button
@@ -89,21 +122,55 @@ export default function ProjectList() {
             ) : (
               <ul className="space-y-2">
                 {projects.map(project => (
-                  <li key={project} className="flex gap-2">
-                    <button
-                      onClick={() => navigate(`/project/${project}`)}
-                      className="flex-1 flex items-center gap-3 p-3 rounded-md border bg-card hover:bg-muted transition-colors text-left"
-                    >
-                      <Folder className="w-5 h-5 text-muted-foreground" />
-                      <span className="font-medium">{project}</span>
-                    </button>
-                    <button
-                      onClick={(e) => handleDelete(e, project)}
-                      className="p-3 text-muted-foreground hover:text-destructive hover:bg-red-50 rounded-md border bg-card transition-colors flex items-center justify-center"
-                      title="Delete Project"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
+                  <li key={project} className="flex gap-2 items-center">
+                    {renamingProject === project ? (
+                      <div className="flex-1 flex items-center gap-2 p-2 border rounded-md bg-muted/30">
+                        <Folder className="w-5 h-5 text-muted-foreground shrink-0" />
+                        <input
+                          autoFocus
+                          type="text"
+                          value={renameValue}
+                          onChange={e => setRenameValue(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') confirmRename(e, project); if (e.key === 'Escape') cancelRename(); }}
+                          maxLength={60}
+                          className="flex-1 bg-transparent outline-none text-sm font-medium"
+                          onClick={e => e.stopPropagation()}
+                        />
+                        <button onClick={e => confirmRename(e, project)} className="p-1 text-green-600 hover:bg-green-50 rounded" title="Confirm">
+                          <Check className="w-4 h-4" />
+                        </button>
+                        <button onClick={cancelRename} className="p-1 text-muted-foreground hover:bg-muted rounded" title="Cancel">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => navigate(`/project/${project}`)}
+                        className="flex-1 flex items-center gap-3 p-3 rounded-md border bg-card hover:bg-muted transition-colors text-left"
+                      >
+                        <Folder className="w-5 h-5 text-muted-foreground" />
+                        <span className="font-medium">{project}</span>
+                      </button>
+                    )}
+
+                    {renamingProject !== project && (
+                      <>
+                        <button
+                          onClick={(e) => startRename(e, project)}
+                          className="p-3 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md border bg-card transition-colors"
+                          title="Rename Project"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={(e) => handleDelete(e, project)}
+                          className="p-3 text-muted-foreground hover:text-destructive hover:bg-red-50 rounded-md border bg-card transition-colors"
+                          title="Delete Project"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
                   </li>
                 ))}
               </ul>

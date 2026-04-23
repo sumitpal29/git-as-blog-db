@@ -25,6 +25,20 @@ export const api = {
         body: JSON.stringify(config),
       });
       return res.json();
+    },
+    delete: async (projectId) => {
+      const res = await fetch(`${API_BASE}/projects/${encodeURIComponent(projectId)}`, {
+        method: 'DELETE',
+      });
+      return res.json();
+    },
+    rename: async (projectId, newName) => {
+      const res = await fetch(`${API_BASE}/projects/${encodeURIComponent(projectId)}/rename`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newName }),
+      });
+      return res.json();
     }
   },
   posts: {
@@ -84,6 +98,22 @@ export const api = {
     delete: async (projectId, folder, filename) => {
       const res = await fetch(`${API_BASE}/projects/${projectId}/data/${encodeURIComponent(folder)}/${encodeURIComponent(filename)}`, {
         method: 'DELETE',
+      });
+      return res.json();
+    },
+    renameFile: async (projectId, folder, filename, newFilename) => {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/data/${encodeURIComponent(folder)}/${encodeURIComponent(filename)}/rename`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newFilename }),
+      });
+      return res.json();
+    },
+    renameFolder: async (projectId, folder, newFolder) => {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/data/${encodeURIComponent(folder)}/rename`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newFolder }),
       });
       return res.json();
     }

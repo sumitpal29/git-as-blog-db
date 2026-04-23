@@ -2,7 +2,7 @@ const fsService = require('../services/fsService');
 const path = require('path');
 const logger = require('../utils/logger');
 
-const EXCLUDED_FOLDERS = ['posts', 'meta'];
+const EXCLUDED_FOLDERS = ['posts'];
 
 exports.listFolders = async (req, res, next) => {
   try {
@@ -106,6 +106,49 @@ exports.deleteFile = async (req, res, next) => {
     }
     
     res.json({ success: true, message: 'Deleted successfully' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.renameFile = async (req, res, next) => {
+  try {
+    const { projectId, folder, filename } = req.params;
+    const { newFilename } = req.body;
+    if (!newFilename || !newFilename.trim()) {
+      return res.status(400).json({ success: false, error: 'New filename is required' });
+    }
+    const oldName = filename.endsWith('.json') ? filename : `${filename}.json`;
+    const newName = newFilename.trim().endsWith('.json') ? newFilename.trim() : `${newFilename.trim()}.json`;
+    if (newName.length > 64) {
+      return res.status(400).json({ success: false, error: 'Filename too long (max 60 chars)' });
+    }
+    const folderPath = path.join(fsService.getProjectPath(projectId), folder);
+    const oldPath = path.join(folderPath, oldName);
+    const newPath = path.join(folderPath, newName);
+    const { rename } = require('fs').promises;
+    await rename(oldPath, newPath);
+    logger.info(`Renamed file ${oldName} -> ${newName} in ${projectId}/${folder}`);
+    res.json({ success: true, message: 'Renamed successfully', newFilename: newName });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.renameFolder = async (req, res, next) => {
+  try {
+    const { projectId, folder } = req.params;
+    const { newFolder } = req.body;
+    if (!newFolder || !newFolder.trim()) {
+      return res.status(400).json({ success: false, error: 'New folder name is required' });
+    }
+    const projectPath = fsService.getProjectPath(projectId);
+    const oldPath = path.join(projectPath, folder);
+    const newPath = path.join(projectPath, newFolder.trim());
+    const { rename } = require('fs').promises;
+    await rename(oldPath, newPath);
+    logger.info(`Renamed folder ${folder} -> ${newFolder.trim()} in ${projectId}`);
+    res.json({ success: true, message: 'Folder renamed successfully', newFolder: newFolder.trim() });
   } catch (err) {
     next(err);
   }

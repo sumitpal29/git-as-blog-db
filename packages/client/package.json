@@ -8,24 +8,41 @@
   "exports": {
     ".": {
       "import": "./src/index.js",
-      "require": "./src/index.cjs.js",
       "types": "./types/index.d.ts"
     }
   },
+  "files": [
+    "src",
+    "types",
+    "README.md"
+  ],
   "scripts": {
-    "example": "node examples/usage.js"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "example": "node examples/usage.js",
+    "prepublishOnly": "npm test"
   },
   "keywords": [
     "blog",
     "cms",
     "github",
     "sdk",
-    "static"
+    "static",
+    "headless"
   ],
   "author": "sumitpal",
   "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/sumitpal/blog_database"
+    "url": "https://github.com/sumitpal29/blog-database-github-client"
+  },
+  "bugs": {
+    "url": "https://github.com/sumitpal29/blog-database-github-client/issues"
+  },
+  "devDependencies": {
+    "vitest": "^2.0.0"
   }
 }

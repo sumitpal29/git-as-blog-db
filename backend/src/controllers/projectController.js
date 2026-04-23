@@ -92,3 +92,29 @@ exports.deleteProject = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.renameProject = async (req, res, next) => {
+  try {
+    const { projectId } = req.params;
+    const { newName } = req.body;
+    if (!newName || !newName.trim()) {
+      return res.status(400).json({ success: false, error: 'New name is required' });
+    }
+    const oldPath = fsService.getProjectPath(projectId);
+    const newPath = fsService.getProjectPath(newName.trim());
+
+    if (!(await fsService.exists(oldPath))) {
+      return res.status(404).json({ success: false, error: 'Project not found' });
+    }
+    if (await fsService.exists(newPath)) {
+      return res.status(400).json({ success: false, error: 'A project with that name already exists' });
+    }
+
+    const { rename } = require('fs').promises;
+    await rename(oldPath, newPath);
+    logger.info(`Renamed project: ${projectId} -> ${newName.trim()}`);
+    res.json({ success: true, message: 'Project renamed', newName: newName.trim() });
+  } catch (err) {
+    next(err);
+  }
+};

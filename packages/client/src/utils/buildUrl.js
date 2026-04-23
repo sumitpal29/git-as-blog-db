@@ -17,7 +17,7 @@ const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com';
  *
  * @example
  * buildUrl({ repo: 'sumitpal/blog_database', branch: 'main', project: 'personal_blog' }, 'meta/list_1.json')
- * // => 'https://raw.githubusercontent.com/sumitpal/blog_database/main/projects/personal_blog/meta/list_1.json'
+ * // => 'https://raw.githubusercontent.com/sumitpal/blog_database/main/personal_blog/meta/list_1.json'
  */
 export function buildUrl(config, filePath) {
   const { repo, branch, project } = config;
@@ -31,5 +31,5 @@ export function buildUrl(config, filePath) {
 
   // Normalise: strip leading slashes so we don't produce double slashes
   const normalised = filePath.replace(/^\/+/, '');
-  return `${GITHUB_RAW_BASE}/${repo}/${branch}/projects/${project}/${normalised}`;
+  return `${GITHUB_RAW_BASE}/${repo}/${branch}/${project}/${normalised}`;
 }
