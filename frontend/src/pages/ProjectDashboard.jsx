@@ -3,7 +3,7 @@ import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import {
   FileText, Plus, Trash2, Edit, Eye, Folder, Database,
-  ChevronRight, FileJson, Pencil, Check, X
+  ChevronRight, FileJson, Pencil, Check, X, BookOpen
 } from 'lucide-react';
 import PostPreviewDrawer from '../components/PostPreviewDrawer';
 
@@ -53,6 +53,7 @@ export default function ProjectDashboard() {
   const [posts, setPosts] = useState([]);
   const [dataFolders, setDataFolders] = useState([]);
   const [expandedFolder, setExpandedFolder] = useState(null);
+  const [postsExpanded, setPostsExpanded] = useState(false);
   const [folderFiles, setFolderFiles] = useState({});
   const [loading, setLoading] = useState(true);
   const [previewPost, setPreviewPost] = useState(null);
@@ -64,7 +65,7 @@ export default function ProjectDashboard() {
 
   useEffect(() => {
     if (activeTab === 'posts') loadPosts();
-    else if (activeTab === 'data') loadDataFolders();
+    else if (activeTab === 'data') { loadDataFolders(); loadPosts(); }
   }, [projectId, activeTab]);
 
   const loadPosts = async () => {
@@ -222,15 +223,81 @@ export default function ProjectDashboard() {
             </ul>
           )
         ) : (
-          dataFolders.length === 0 ? (
-            <div className="p-12 text-center flex flex-col items-center">
-              <Database className="w-12 h-12 text-muted-foreground/50 mb-4" />
-              <h3 className="text-lg font-medium">No custom data</h3>
-              <p className="text-muted-foreground mt-1 mb-4">Create some JSON config or data files.</p>
-            </div>
-          ) : (
-            <ul className="divide-y border">
-              {dataFolders.map((folder) => (
+          <>
+            {/* Posts folder — always shown in data tab */}
+            <ul className="divide-y border rounded-lg mb-4 overflow-hidden">
+              <li className="bg-card">
+                <div className="w-full p-4 flex items-center justify-between hover:bg-muted/30 transition-colors">
+                  <button
+                    onClick={() => setPostsExpanded(v => !v)}
+                    className="flex items-center gap-3 flex-1 text-left"
+                  >
+                    <BookOpen className="w-5 h-5 text-orange-500 shrink-0" />
+                    <span className="font-medium">posts</span>
+                    <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full ml-1">blog posts</span>
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      to={`/project/${projectId}/post/new`}
+                      className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
+                      title="New Post"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Link>
+                    <ChevronRight
+                      onClick={() => setPostsExpanded(v => !v)}
+                      className={`w-5 h-5 text-muted-foreground transition-transform cursor-pointer ${postsExpanded ? 'rotate-90' : ''}`}
+                    />
+                  </div>
+                </div>
+                {postsExpanded && (
+                  <div className="bg-muted/30 border-t p-4">
+                    {posts.length === 0 ? (
+                      <p className="text-sm text-muted-foreground italic">No posts yet</p>
+                    ) : (
+                      <ul className="space-y-2 pl-4 border-l-2 border-muted">
+                        {posts.map(post => (
+                          <li key={post.slug} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded-md group">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <FileText className="w-4 h-4 text-blue-500 shrink-0" />
+                              <span className="text-sm font-medium truncate">{post.slug}.md</span>
+                            </div>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                              <button
+                                onClick={() => setPreviewPost(post)}
+                                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
+                                title="Preview"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              <Link
+                                to={`/project/${projectId}/post/${post.slug}`}
+                                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
+                                title="Edit Post"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Link>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </li>
+            </ul>
+
+            {/* Custom data folders */}
+            {dataFolders.length === 0 ? (
+              <div className="p-12 text-center flex flex-col items-center border rounded-lg">
+                <Database className="w-12 h-12 text-muted-foreground/50 mb-4" />
+                <h3 className="text-lg font-medium">No custom data</h3>
+                <p className="text-muted-foreground mt-1 mb-4">Create some JSON config or data files.</p>
+              </div>
+            ) : (
+              <ul className="divide-y border rounded-lg overflow-hidden">
+                {dataFolders.map((folder) => (
                 <li key={folder} className="bg-card">
                   {/* Folder row */}
                   <div className="w-full p-4 flex items-center justify-between hover:bg-muted/30 transition-colors group">
@@ -331,7 +398,8 @@ export default function ProjectDashboard() {
                 </li>
               ))}
             </ul>
-          )
+          )}
+        </>
         )}
       </div>
 

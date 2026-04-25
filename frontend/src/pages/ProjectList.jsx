@@ -1,7 +1,37 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
-import { FolderPlus, Folder, Trash2, Pencil, Check, X } from 'lucide-react';
+import { FolderPlus, Folder, Trash2, Pencil, Check, X, AlertTriangle } from 'lucide-react';
+
+function ConfirmModal({ title, message, onConfirm, onCancel }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-card border rounded-xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-full bg-red-100">
+            <AlertTriangle className="w-5 h-5 text-red-600" />
+          </div>
+          <h3 className="font-semibold text-base">{title}</h3>
+        </div>
+        <p className="text-sm text-muted-foreground">{message}</p>
+        <div className="flex gap-3 justify-end pt-1">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 text-sm rounded-md border hover:bg-muted transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 text-sm rounded-md bg-destructive text-destructive-foreground hover:opacity-90 transition-opacity"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function ProjectList() {
   const [projects, setProjects] = useState([]);
@@ -9,6 +39,7 @@ export default function ProjectList() {
   const [loading, setLoading] = useState(true);
   const [renamingProject, setRenamingProject] = useState(null);
   const [renameValue, setRenameValue] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(null); // project name to delete
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -26,19 +57,21 @@ export default function ProjectList() {
     }
   };
 
-  const handleDelete = async (e, projectName) => {
+  const handleDeleteRequest = (e, projectName) => {
     e.stopPropagation();
-    if (!window.confirm(`Delete project "${projectName}"? This cannot be undone.`)) return;
+    setConfirmDelete(projectName);
+  };
+
+  const handleDeleteConfirm = async () => {
+    const projectName = confirmDelete;
+    setConfirmDelete(null);
     try {
       const res = await api.projects.delete(projectName);
       if (res.success) {
         setProjects(projects.filter(p => p !== projectName));
-      } else {
-        alert(res.error || 'Failed to delete project');
       }
     } catch (err) {
       console.error(err);
-      alert('Failed to delete project');
     }
   };
 
@@ -63,11 +96,9 @@ export default function ProjectList() {
       if (res.success) {
         setProjects(projects.map(p => (p === oldName ? trimmed : p)));
         setRenamingProject(null);
-      } else {
-        alert(res.error || 'Failed to rename');
       }
     } catch (err) {
-      alert('Failed to rename project');
+      console.error('Failed to rename project', err);
     }
   };
 
@@ -78,11 +109,9 @@ export default function ProjectList() {
       const res = await api.projects.create(newProjectName);
       if (res.success) {
         navigate(`/project/${res.data.name}`);
-      } else {
-        alert(res.error);
       }
     } catch (err) {
-      alert('Failed to create project');
+      console.error('Failed to create project', err);
     }
   };
 
@@ -102,11 +131,11 @@ export default function ProjectList() {
               value={newProjectName}
               onChange={(e) => setNewProjectName(e.target.value)}
               maxLength={60}
-              className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+              className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-card"
             />
             <button
               type="submit"
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md flex items-center gap-2 hover:bg-primary/90"
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-md flex items-center gap-2 hover:bg-primary/90 transition-colors"
             >
               <FolderPlus className="w-4 h-4" />
               Create
@@ -163,7 +192,7 @@ export default function ProjectList() {
                           <Pencil className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={(e) => handleDelete(e, project)}
+                          onClick={(e) => handleDeleteRequest(e, project)}
                           className="p-3 text-muted-foreground hover:text-destructive hover:bg-red-50 rounded-md border bg-card transition-colors"
                           title="Delete Project"
                         >
@@ -178,6 +207,15 @@ export default function ProjectList() {
           </div>
         </div>
       </div>
+
+      {confirmDelete && (
+        <ConfirmModal
+          title="Delete Project"
+          message={`Delete "${confirmDelete}" and all its content? This cannot be undone.`}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
     </div>
   );
 }
