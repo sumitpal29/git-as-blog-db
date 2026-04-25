@@ -2,6 +2,7 @@ const path = require('path');
 const fsService = require('./fsService');
 const configService = require('./configService');
 const postService = require('./postService');
+const bookService = require('./bookService');
 
 class GenerateService {
   async generateProjectMeta(projectName) {
@@ -72,7 +73,32 @@ class GenerateService {
     };
     await fsService.writeFile(path.join(metaDir, 'index.json'), JSON.stringify(indexPayload, null, 2));
 
+    // Generate book map files
+    await this.generateBooksMeta(projectName);
+
     return indexPayload;
+  }
+
+  async generateBooksMeta(projectName) {
+    const booksDir = path.join(fsService.getProjectPath(projectName), 'books');
+    if (!(await fsService.exists(booksDir))) return;
+
+    const bookSlugs = await fsService.listDirectories(booksDir);
+    const booksList = [];
+
+    for (const slug of bookSlugs) {
+      try {
+        const map = await bookService.getBookMap(projectName, slug);
+        const mapPath = path.join(booksDir, slug, 'map.json');
+        await fsService.writeFile(mapPath, JSON.stringify(map, null, 2));
+        booksList.push({ slug, name: map.name, description: map.description });
+      } catch (err) {
+        // Skip books with missing or corrupt index.json
+      }
+    }
+
+    const booksIndex = { books: booksList, generatedAt: new Date().toISOString() };
+    await fsService.writeFile(path.join(booksDir, 'index.json'), JSON.stringify(booksIndex, null, 2));
   }
 }
 

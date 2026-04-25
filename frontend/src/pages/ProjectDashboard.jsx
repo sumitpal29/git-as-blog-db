@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link, useSearchParams } from 'react-router-dom';
+import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import {
   FileText, Plus, Trash2, Edit, Eye, Folder, Database,
-  ChevronRight, FileJson, Pencil, Check, X, BookOpen
+  ChevronRight, FileJson, Pencil, Check, X, BookOpen,
+  AlertTriangle, Loader2,
 } from 'lucide-react';
 import PostPreviewDrawer from '../components/PostPreviewDrawer';
 
@@ -47,6 +48,7 @@ function InlineRename({ value, onConfirm, onCancel, maxLength = 60 }) {
 
 export default function ProjectDashboard() {
   const { projectId } = useParams();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'posts';
 
@@ -59,6 +61,14 @@ export default function ProjectDashboard() {
   const [previewPost, setPreviewPost] = useState(null);
   const [quickView, setQuickView] = useState(null); // { title, content }
 
+  // Books state
+  const [books, setBooks] = useState([]);
+  const [newBookName, setNewBookName] = useState('');
+  const [newBookDesc, setNewBookDesc] = useState('');
+  const [bookNameError, setBookNameError] = useState('');
+  const [creatingBook, setCreatingBook] = useState(false);
+  const [confirmDeleteBook, setConfirmDeleteBook] = useState(null);
+
   // Rename state
   const [renamingFolder, setRenamingFolder] = useState(null);
   const [renamingFile, setRenamingFile] = useState(null); // { folder, filename }
@@ -66,7 +76,45 @@ export default function ProjectDashboard() {
   useEffect(() => {
     if (activeTab === 'posts') loadPosts();
     else if (activeTab === 'data') { loadDataFolders(); loadPosts(); }
+    else if (activeTab === 'books') loadBooks();
   }, [projectId, activeTab]);
+
+  const loadBooks = async () => {
+    setLoading(true);
+    try {
+      const res = await api.books.list(projectId);
+      if (res.success) setBooks(res.data);
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
+  };
+
+  const handleCreateBook = async (e) => {
+    e.preventDefault();
+    const name = newBookName.trim();
+    if (!name) return;
+    if (!/^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$/.test(name)) {
+      setBookNameError('Lowercase letters, numbers, hyphens, underscores only — no spaces');
+      return;
+    }
+    setCreatingBook(true);
+    setBookNameError('');
+    const res = await api.books.create(projectId, { name, description: newBookDesc.trim() });
+    setCreatingBook(false);
+    if (res.success) {
+      setNewBookName('');
+      setNewBookDesc('');
+      await loadBooks();
+    } else {
+      setBookNameError(res.error || 'Failed to create book');
+    }
+  };
+
+  const handleDeleteBook = async () => {
+    const slug = confirmDeleteBook;
+    setConfirmDeleteBook(null);
+    await api.books.delete(projectId, slug);
+    setBooks(books.filter(b => b.slug !== slug));
+  };
 
   const loadPosts = async () => {
     setLoading(true);
@@ -174,17 +222,23 @@ export default function ProjectDashboard() {
           >
             <Database className="w-4 h-4" />Custom Data
           </button>
+          <button
+            onClick={() => switchTab('books')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'books' ? 'bg-background shadow-sm' : 'hover:bg-background/50 text-muted-foreground'}`}
+          >
+            <BookOpen className="w-4 h-4" />Books
+          </button>
         </div>
 
         {activeTab === 'posts' ? (
           <Link to={`/project/${projectId}/post/new`} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors font-medium text-sm">
             <Plus className="w-4 h-4" />New Post
           </Link>
-        ) : (
+        ) : activeTab === 'data' ? (
           <Link to={`/project/${projectId}/data/new`} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors font-medium text-sm">
             <Plus className="w-4 h-4" />New Data File
           </Link>
-        )}
+        ) : null}
       </div>
 
       <div className="bg-card border rounded-lg shadow-sm overflow-hidden min-h-[400px]">
@@ -222,6 +276,91 @@ export default function ProjectDashboard() {
               ))}
             </ul>
           )
+        ) : activeTab === 'books' ? (
+          <div className="p-6 space-y-6">
+            {/* Create book form */}
+            <form onSubmit={handleCreateBook} className="bg-muted/30 border rounded-lg p-4 space-y-3">
+              <h3 className="text-sm font-semibold">New Book</h3>
+              <div className="flex gap-2">
+                <div className="flex-1 space-y-1">
+                  <input
+                    type="text"
+                    placeholder="book-slug (lowercase, hyphens only)"
+                    value={newBookName}
+                    onChange={e => { setNewBookName(e.target.value); setBookNameError(''); }}
+                    maxLength={60}
+                    className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-ring bg-card"
+                  />
+                  {bookNameError && <p className="text-xs text-destructive">{bookNameError}</p>}
+                </div>
+                <input
+                  type="text"
+                  placeholder="Description (optional)"
+                  value={newBookDesc}
+                  onChange={e => setNewBookDesc(e.target.value)}
+                  className="flex-1 px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-ring bg-card"
+                />
+                <button
+                  type="submit"
+                  disabled={creatingBook}
+                  className="flex items-center gap-2 px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50 shrink-0"
+                >
+                  {creatingBook ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                  Create Book
+                </button>
+              </div>
+            </form>
+
+            {/* Book list */}
+            {books.length === 0 ? (
+              <div className="flex flex-col items-center py-12 text-center">
+                <BookOpen className="w-12 h-12 text-muted-foreground/40 mb-3" />
+                <h3 className="text-lg font-medium">No books yet</h3>
+                <p className="text-muted-foreground text-sm mt-1">Create a book to organise documentation, guides, or any long-form content.</p>
+              </div>
+            ) : (
+              <ul className="space-y-2">
+                {books.map(book => (
+                  <li key={book.slug} className="flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-muted/30 transition-colors group">
+                    <button
+                      onClick={() => navigate(`/project/${projectId}/book/${book.slug}`)}
+                      className="flex items-center gap-3 flex-1 text-left min-w-0"
+                    >
+                      <BookOpen className="w-5 h-5 text-primary shrink-0" />
+                      <div className="min-w-0">
+                        <p className="font-semibold">{book.name}</p>
+                        {book.description && <p className="text-sm text-muted-foreground truncate">{book.description}</p>}
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => setConfirmDeleteBook(book.slug)}
+                      className="p-2 rounded-md text-muted-foreground hover:text-destructive hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                      title="Delete book"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {/* Delete book confirmation */}
+            {confirmDeleteBook && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                <div className="bg-card border rounded-xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-full bg-red-100"><AlertTriangle className="w-5 h-5 text-red-600" /></div>
+                    <h3 className="font-semibold">Delete Book</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Delete "{confirmDeleteBook}" and all its files? This cannot be undone.</p>
+                  <div className="flex gap-3 justify-end">
+                    <button onClick={() => setConfirmDeleteBook(null)} className="px-4 py-2 text-sm rounded-md border hover:bg-muted transition-colors">Cancel</button>
+                    <button onClick={handleDeleteBook} className="px-4 py-2 text-sm rounded-md bg-destructive text-destructive-foreground hover:opacity-90 transition-opacity">Delete</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         ) : (
           <>
             {/* Posts folder — always shown in data tab */}

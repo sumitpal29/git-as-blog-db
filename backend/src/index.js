@@ -9,6 +9,7 @@ const postRoutes = require('./routes/posts');
 const generateRoutes = require('./routes/generate');
 const gitRoutes = require('./routes/git');
 const dataRoutes = require('./routes/data');
+const bookRoutes = require('./routes/books');
 
 const app = express();
 
@@ -21,6 +22,7 @@ app.use('/api/projects/:projectId/posts', postRoutes);
 app.use('/api/projects/:projectId/data', dataRoutes);
 app.use('/api/projects/:projectId/generate', generateRoutes);
 app.use('/api/projects/:projectId/sync', gitRoutes);
+app.use('/api/projects/:projectId/books', bookRoutes);
 
 // Global Error Handler
 app.use(errorHandler);

@@ -118,6 +118,60 @@ export const api = {
       return res.json();
     }
   },
+  books: {
+    list: async (projectId) => {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/books`);
+      return res.json();
+    },
+    create: async (projectId, data) => {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/books`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      return res.json();
+    },
+    get: async (projectId, bookSlug) => {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/books/${bookSlug}`);
+      return res.json();
+    },
+    delete: async (projectId, bookSlug) => {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/books/${bookSlug}`, { method: 'DELETE' });
+      return res.json();
+    },
+    getMap: async (projectId, bookSlug) => {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/books/${bookSlug}/map`);
+      return res.json();
+    },
+    getFile: async (projectId, bookSlug, filePath) => {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/books/${bookSlug}/files?path=${encodeURIComponent(filePath)}`);
+      return res.json();
+    },
+    saveFile: async (projectId, bookSlug, filePath, content) => {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/books/${bookSlug}/files`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: filePath, content }),
+      });
+      return res.json();
+    },
+    deleteFile: async (projectId, bookSlug, filePath) => {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/books/${bookSlug}/files?path=${encodeURIComponent(filePath)}`, { method: 'DELETE' });
+      return res.json();
+    },
+    createFolder: async (projectId, bookSlug, folderPath) => {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/books/${bookSlug}/folders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: folderPath }),
+      });
+      return res.json();
+    },
+    deleteFolder: async (projectId, bookSlug, folderPath) => {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/books/${bookSlug}/folders?path=${encodeURIComponent(folderPath)}`, { method: 'DELETE' });
+      return res.json();
+    },
+  },
   actions: {
     generate: async (projectId) => {
       const res = await fetch(`${API_BASE}/projects/${projectId}/generate`, { method: 'POST' });
