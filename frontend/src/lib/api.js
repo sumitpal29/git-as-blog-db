@@ -131,6 +131,14 @@ export const api = {
       });
       return res.json();
     },
+    update: async (projectId, bookSlug, data) => {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/books/${bookSlug}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      return res.json();
+    },
     get: async (projectId, bookSlug) => {
       const res = await fetch(`${API_BASE}/projects/${projectId}/books/${bookSlug}`);
       return res.json();
@@ -147,11 +155,11 @@ export const api = {
       const res = await fetch(`${API_BASE}/projects/${projectId}/books/${bookSlug}/files?path=${encodeURIComponent(filePath)}`);
       return res.json();
     },
-    saveFile: async (projectId, bookSlug, filePath, content) => {
+    saveFile: async (projectId, bookSlug, filePath, content, displayName) => {
       const res = await fetch(`${API_BASE}/projects/${projectId}/books/${bookSlug}/files`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: filePath, content }),
+        body: JSON.stringify({ path: filePath, content, displayName }),
       });
       return res.json();
     },
@@ -159,11 +167,19 @@ export const api = {
       const res = await fetch(`${API_BASE}/projects/${projectId}/books/${bookSlug}/files?path=${encodeURIComponent(filePath)}`, { method: 'DELETE' });
       return res.json();
     },
-    createFolder: async (projectId, bookSlug, folderPath) => {
+    createFolder: async (projectId, bookSlug, folderPath, displayName) => {
       const res = await fetch(`${API_BASE}/projects/${projectId}/books/${bookSlug}/folders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: folderPath }),
+        body: JSON.stringify({ path: folderPath, displayName }),
+      });
+      return res.json();
+    },
+    renameFolder: async (projectId, bookSlug, folderPath, newName) => {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/books/${bookSlug}/folders`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: folderPath, newName }),
       });
       return res.json();
     },
@@ -185,5 +201,33 @@ export const api = {
       });
       return res.json();
     }
-  }
+  },
+  assets: {
+    list: async (projectId) => {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/assets`);
+      return res.json();
+    },
+    upload: async (projectId, file, { strategy, name } = {}) => {
+      const form = new FormData();
+      form.append('file', file);
+      const params = new URLSearchParams();
+      if (strategy) params.set('strategy', strategy);
+      if (name) params.set('name', name);
+      const qs = params.toString() ? `?${params}` : '';
+      const res = await fetch(`${API_BASE}/projects/${projectId}/assets/upload${qs}`, {
+        method: 'POST',
+        body: form,
+      });
+      // Return raw response + json so caller can inspect status
+      const data = await res.json();
+      return { status: res.status, ...data };
+    },
+    delete: async (projectId, filename) => {
+      const res = await fetch(
+        `${API_BASE}/projects/${projectId}/assets/${encodeURIComponent(filename)}`,
+        { method: 'DELETE' }
+      );
+      return res.json();
+    },
+  },
 };

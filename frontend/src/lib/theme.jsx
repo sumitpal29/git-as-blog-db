@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 
 const ThemeContext = createContext(null);
 
-export const THEMES = ['light', 'dark', 'solarised'];
+export const THEMES = ['light', 'dark', 'candy', 'dark-candy'];
 
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(() => localStorage.getItem('cms-theme') || 'light');

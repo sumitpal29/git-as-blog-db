@@ -32,7 +32,7 @@ export default function Layout() {
     return idleLabel;
   };
 
-  const themeLabel = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+  const themeLabel = (t) => t.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 
   return (
     <div className="min-h-screen bg-background flex flex-col">

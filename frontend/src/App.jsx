@@ -6,6 +6,8 @@ import ProjectSettings from './pages/ProjectSettings';
 import DataEditor from './pages/DataEditor';
 import BookViewer from './pages/BookViewer';
 import BookFileEditor from './pages/BookFileEditor';
+import BookReadPage from './pages/BookReadPage';
+import AssetsPage from './pages/AssetsPage';
 import Layout from './components/Layout';
 
 function App() {
@@ -20,6 +22,8 @@ function App() {
           <Route path="data/new" element={<DataEditor />} />
           <Route path="book/:bookSlug" element={<BookViewer />} />
           <Route path="book/:bookSlug/edit" element={<BookFileEditor />} />
+          <Route path="book/:bookSlug/read" element={<BookReadPage />} />
+          <Route path="assets" element={<AssetsPage />} />
           <Route path="settings" element={<ProjectSettings />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

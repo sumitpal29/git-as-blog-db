@@ -2,21 +2,30 @@ const path = require('path');
 const fs = require('fs').promises;
 const fsService = require('./fsService');
 
-// Slug rules: lowercase alphanumeric, hyphens, underscores. No leading/trailing -_
-const NAME_REGEX = /^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$/;
+const SLUG_REGEX = /^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$/;
 
-function validateName(name) {
-  if (!name || typeof name !== 'string' || name.trim().length === 0) return 'Name is required';
-  if (name.length > 60) return 'Name must be 60 characters or less';
-  if (!NAME_REGEX.test(name)) {
-    return 'Name must be lowercase letters, numbers, hyphens, or underscores only — no spaces or special characters';
+function generateSlug(text) {
+  return (text || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s_-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^[-_]+|[-_]+$/g, '')
+    .slice(0, 60) || 'untitled';
+}
+
+function validateSlug(slug) {
+  if (!slug || typeof slug !== 'string' || slug.trim().length === 0) return 'Slug is required';
+  if (slug.length > 60) return 'Slug must be 60 characters or less';
+  if (!SLUG_REGEX.test(slug)) {
+    return 'Slug must be lowercase letters, numbers, hyphens, or underscores only — no spaces';
   }
   return null;
 }
 
 function validateFileStem(name) {
   const stem = name.endsWith('.md') ? name.slice(0, -3) : name;
-  return validateName(stem);
+  return validateSlug(stem);
 }
 
 function validatePath(relPath) {
@@ -47,7 +56,6 @@ class BookService {
     await fsService.writeFile(indexPath, JSON.stringify(data, null, 2));
   }
 
-  // Add or remove an item from a folder's index.json items array
   async syncFolderIndex(folderAbsPath, action, item) {
     const index = await this.readIndex(folderAbsPath);
     if (!index) return;
@@ -75,20 +83,36 @@ class BookService {
     return books;
   }
 
-  async createBook(projectName, { name, description = '' }) {
-    const nameErr = validateName(name);
-    if (nameErr) throw Object.assign(new Error(nameErr), { statusCode: 400 });
+  async createBook(projectName, { name, slug, description = '' }) {
+    if (!name || !name.trim()) throw Object.assign(new Error('Book name is required'), { statusCode: 400 });
 
-    const bookPath = this.getBookPath(projectName, name);
+    // Auto-generate slug from name if not provided
+    const bookSlug = slug ? slug.trim() : generateSlug(name);
+    const slugErr = validateSlug(bookSlug);
+    if (slugErr) throw Object.assign(new Error(slugErr), { statusCode: 400 });
+
+    const bookPath = this.getBookPath(projectName, bookSlug);
     if (await fsService.exists(bookPath)) {
-      throw Object.assign(new Error(`Book "${name}" already exists`), { statusCode: 400 });
+      throw Object.assign(new Error(`Book with slug "${bookSlug}" already exists`), { statusCode: 400 });
     }
 
     await fsService.ensureDir(bookPath);
     const now = new Date().toISOString();
-    const indexData = { name, slug: name, description, type: 'book', createdAt: now, updatedAt: now, items: [] };
+    const indexData = { name: name.trim(), slug: bookSlug, description, type: 'book', createdAt: now, updatedAt: now, items: [] };
     await this.writeIndex(bookPath, indexData);
     return indexData;
+  }
+
+  async updateBook(projectName, bookSlug, { name, description }) {
+    const bookPath = this.getBookPath(projectName, bookSlug);
+    const index = await this.readIndex(bookPath);
+    if (!index) throw Object.assign(new Error(`Book "${bookSlug}" not found`), { statusCode: 404 });
+
+    if (name !== undefined) index.name = name.trim() || index.name;
+    if (description !== undefined) index.description = description;
+    index.updatedAt = new Date().toISOString();
+    await this.writeIndex(bookPath, index);
+    return index;
   }
 
   async getBook(projectName, bookSlug) {
@@ -106,7 +130,6 @@ class BookService {
     return true;
   }
 
-  // Recursively build the tree for a folder
   async buildTree(folderAbsPath) {
     const index = await this.readIndex(folderAbsPath);
     if (!index) return null;
@@ -138,14 +161,14 @@ class BookService {
     };
   }
 
-  async createFolder(projectName, bookSlug, folderPath) {
+  async createFolder(projectName, bookSlug, folderPath, displayName) {
     const pathErr = validatePath(folderPath);
     if (pathErr) throw Object.assign(new Error(pathErr), { statusCode: 400 });
 
     const parts = folderPath.split('/').filter(Boolean);
     for (const part of parts) {
-      const err = validateName(part);
-      if (err) throw Object.assign(new Error(`Invalid folder name "${part}": ${err}`), { statusCode: 400 });
+      const err = validateSlug(part);
+      if (err) throw Object.assign(new Error(`Invalid folder slug "${part}": ${err}`), { statusCode: 400 });
     }
 
     const bookPath = this.getBookPath(projectName, bookSlug);
@@ -158,19 +181,93 @@ class BookService {
     await fsService.ensureDir(newFolderAbs);
     const now = new Date().toISOString();
     const folderName = parts[parts.length - 1];
-    const folderIndex = { name: folderName, type: 'folder', createdAt: now, updatedAt: now, items: [] };
+    const folderIndex = { name: folderName, displayName: displayName || folderName, type: 'folder', createdAt: now, updatedAt: now, items: [] };
     await this.writeIndex(newFolderAbs, folderIndex);
 
-    // Update the parent folder's index.json
     const parentAbs = parts.length === 1 ? bookPath : path.join(bookPath, ...parts.slice(0, -1));
     await this.syncFolderIndex(parentAbs, 'add', {
       type: 'folder',
       name: folderName,
+      displayName: displayName || folderName,
       path: parts.join('/'),
       description: '',
     });
 
     return folderIndex;
+  }
+
+  async renameFolder(projectName, bookSlug, folderPath, newFolderName) {
+    const slugErr = validateSlug(newFolderName);
+    if (slugErr) throw Object.assign(new Error(slugErr), { statusCode: 400 });
+
+    const parts = folderPath.split('/').filter(Boolean);
+    const bookPath = this.getBookPath(projectName, bookSlug);
+    const oldAbs = path.join(bookPath, ...parts);
+
+    if (!(await fsService.exists(oldAbs))) {
+      throw Object.assign(new Error(`Folder "${folderPath}" not found`), { statusCode: 404 });
+    }
+
+    const newParts = [...parts.slice(0, -1), newFolderName];
+    const newFolderPath = newParts.join('/');
+    const newAbs = path.join(bookPath, ...newParts);
+
+    if (await fsService.exists(newAbs)) {
+      throw Object.assign(new Error(`Folder "${newFolderPath}" already exists`), { statusCode: 400 });
+    }
+
+    await fs.rename(oldAbs, newAbs);
+
+    // Update the folder's own index.json name
+    const folderIndex = await this.readIndex(newAbs);
+    if (folderIndex) {
+      folderIndex.name = newFolderName;
+      folderIndex.updatedAt = new Date().toISOString();
+      await this.writeIndex(newAbs, folderIndex);
+    }
+
+    // Update parent's reference to this folder
+    const parentAbs = parts.length === 1 ? bookPath : path.join(bookPath, ...parts.slice(0, -1));
+    const parentIndex = await this.readIndex(parentAbs);
+    if (parentIndex) {
+      parentIndex.items = parentIndex.items.map(item =>
+        item.path === folderPath
+          ? { ...item, name: newFolderName, path: newFolderPath }
+          : item
+      );
+      parentIndex.updatedAt = new Date().toISOString();
+      await this.writeIndex(parentAbs, parentIndex);
+    }
+
+    // Fix all child paths that reference the old folder path
+    await this.fixAllPaths(newAbs, folderPath, newFolderPath);
+
+    return { oldPath: folderPath, newPath: newFolderPath };
+  }
+
+  // Recursively update all item paths in index.json files under folderAbsPath,
+  // replacing oldPrefix with newPrefix in each item's path field.
+  async fixAllPaths(folderAbsPath, oldPrefix, newPrefix) {
+    const index = await this.readIndex(folderAbsPath);
+    if (!index) return;
+
+    index.items = index.items.map(item => ({
+      ...item,
+      path: item.path === oldPrefix
+        ? newPrefix
+        : item.path.startsWith(oldPrefix + '/')
+          ? newPrefix + item.path.slice(oldPrefix.length)
+          : item.path,
+    }));
+    index.updatedAt = new Date().toISOString();
+    await this.writeIndex(folderAbsPath, index);
+
+    for (const item of (index.items || [])) {
+      if (item.type === 'folder') {
+        const subAbs = path.join(folderAbsPath, item.name);
+        await this.fixAllPaths(subAbs, oldPrefix, newPrefix);
+      }
+    }
   }
 
   async deleteFolder(projectName, bookSlug, folderPath) {
@@ -192,7 +289,7 @@ class BookService {
     return true;
   }
 
-  async saveFile(projectName, bookSlug, filePath, content = '') {
+  async saveFile(projectName, bookSlug, filePath, content = '', displayName) {
     const pathErr = validatePath(filePath);
     if (pathErr) throw Object.assign(new Error(pathErr), { statusCode: 400 });
 
@@ -216,6 +313,7 @@ class BookService {
       await this.syncFolderIndex(parentAbs, 'add', {
         type: 'file',
         name: stem,
+        displayName: displayName || stem,
         path: parts.join('/'),
         description: '',
       });
@@ -261,3 +359,4 @@ class BookService {
 }
 
 module.exports = new BookService();
+module.exports.generateSlug = generateSlug;

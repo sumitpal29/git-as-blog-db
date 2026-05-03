@@ -3,6 +3,12 @@
 1. Keep user new changes in local storage so that on reloading or clicking back user does not loose data, also we add a reset if user has made changes
 2. Add a filter by search feature on the posts
 3. Add Sort option
+4. 
+5. Allow user to create their own metadata on the settings page per project
+6.  custom data is advance form should be placed at very RHS. also we should show an info banner that it is a critical place where any temper of config data can cause break in consumer application
+7. encode and decode content option with a key generation per project
+
+
 
 ## Repos
 git@github.com:sumitpal29/sumit-pal-portfolio-database.git
@@ -19,7 +25,14 @@ git@github.com:sumitpal29/git-as-blog-db.git
 - when user is in setting page hide setting icon, generate json from header
 - setting page - make content center
 - option to delete a project folder with confirmation modal not aleart
-
+- book name should not have restriction on name. but the book url slug we can auto generate which will safaise our conditions - Lowercase letters, numbers, hyphens, underscores only — no spaces - user can edit it
+- there should be an edit feature where user can edit exsisting book meta data
+- Again file name - should be called page name
+- Page can have a unique name but again file path url should be generated accordingly
+- folder name should be editable, with edit make sure we are updating configs
+- add back option while creating a book, currently there is no back option user has to click on the project title in the header to go back.
+- delete boook should update the index.json also
+- read book - preview feature with the data that user has created.
 
 The project is already shadcn-ready
 Look at the CSS variable names in index.css:

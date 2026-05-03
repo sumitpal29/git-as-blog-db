@@ -3,11 +3,24 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ChevronRight, FileText, Folder, Plus, Trash2, Edit,
   BookOpen, Loader2, X, AlertTriangle, FolderPlus, FilePlus,
+  ArrowLeft, Pencil, BookMarked, Check,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { cn } from '../lib/utils';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function generateSlug(text) {
+  return (text || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s_-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^[-_]+|[-_]+$/g, '')
+    .slice(0, 60) || '';
+}
 
 // ── Modals ────────────────────────────────────────────────────────────────────
 
@@ -29,19 +42,35 @@ function ConfirmModal({ message, onConfirm, onCancel }) {
   );
 }
 
-function NewItemModal({ title, placeholder, onConfirm, onCancel, hint }) {
-  const [value, setValue] = useState('');
+// Modal for creating a new page — free display name with auto-generated slug
+function NewPageModal({ title, parentPath, onConfirm, onCancel }) {
+  const [displayName, setDisplayName] = useState('');
+  const [slug, setSlug] = useState('');
+  const [slugManual, setSlugManual] = useState(false);
   const [error, setError] = useState('');
+
+  const handleNameChange = (val) => {
+    setDisplayName(val);
+    setError('');
+    if (!slugManual) setSlug(generateSlug(val));
+  };
+
+  const handleSlugChange = (val) => {
+    setSlug(val);
+    setSlugManual(true);
+    setError('');
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const v = value.trim();
-    if (!v) { setError('Name is required'); return; }
-    if (!/^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$/.test(v)) {
-      setError('Lowercase letters, numbers, hyphens, underscores only — no spaces');
+    if (!displayName.trim()) { setError('Page name is required'); return; }
+    const s = slug.trim();
+    if (!s) { setError('URL slug is required'); return; }
+    if (!/^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$/.test(s)) {
+      setError('URL slug: lowercase letters, numbers, hyphens, underscores only');
       return;
     }
-    onConfirm(v);
+    onConfirm({ displayName: displayName.trim(), slug: s });
   };
 
   return (
@@ -53,18 +82,29 @@ function NewItemModal({ title, placeholder, onConfirm, onCancel, hint }) {
         </div>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Page Name</label>
             <input
               autoFocus
               type="text"
-              value={value}
-              onChange={e => { setValue(e.target.value); setError(''); }}
-              placeholder={placeholder}
-              maxLength={60}
+              value={displayName}
+              onChange={e => handleNameChange(e.target.value)}
+              placeholder="Introduction to Chapter 1"
               className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-ring bg-card"
             />
-            {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
-            {error && <p className="text-xs text-destructive">{error}</p>}
           </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">URL Slug <span className="text-muted-foreground/60">(auto-generated)</span></label>
+            <input
+              type="text"
+              value={slug}
+              onChange={e => handleSlugChange(e.target.value)}
+              placeholder="introduction-to-chapter-1"
+              maxLength={60}
+              className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-ring bg-card font-mono"
+            />
+            {parentPath && <p className="text-xs text-muted-foreground">in: {parentPath}/</p>}
+          </div>
+          {error && <p className="text-xs text-destructive">{error}</p>}
           <div className="flex gap-3 justify-end">
             <button type="button" onClick={onCancel} className="px-4 py-2 text-sm rounded-md border hover:bg-muted transition-colors">Cancel</button>
             <button type="submit" className="px-4 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">Create</button>
@@ -75,10 +115,96 @@ function NewItemModal({ title, placeholder, onConfirm, onCancel, hint }) {
   );
 }
 
+// Modal for creating a new folder
+function NewFolderModal({ title, parentPath, onConfirm, onCancel }) {
+  const [slug, setSlug] = useState('');
+  const [error, setError] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const s = slug.trim();
+    if (!s) { setError('Folder name is required'); return; }
+    if (!/^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$/.test(s)) {
+      setError('Lowercase letters, numbers, hyphens, underscores only — no spaces');
+      return;
+    }
+    onConfirm(s);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-card border rounded-xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold">{title}</h3>
+          <button onClick={onCancel} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4" /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Folder Name</label>
+            <input
+              autoFocus
+              type="text"
+              value={slug}
+              onChange={e => { setSlug(e.target.value); setError(''); }}
+              placeholder="chapter-1"
+              maxLength={60}
+              className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-ring bg-card font-mono"
+            />
+            <p className="text-xs text-muted-foreground">Lowercase, hyphens, underscores only.{parentPath ? ` in: ${parentPath}/` : ''}</p>
+          </div>
+          {error && <p className="text-xs text-destructive">{error}</p>}
+          <div className="flex gap-3 justify-end">
+            <button type="button" onClick={onCancel} className="px-4 py-2 text-sm rounded-md border hover:bg-muted transition-colors">Cancel</button>
+            <button type="submit" className="px-4 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">Create</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Inline folder rename widget
+function FolderRenameInput({ currentName, onConfirm, onCancel }) {
+  const [val, setVal] = useState(currentName);
+  const [error, setError] = useState('');
+
+  const handleSubmit = () => {
+    const v = val.trim();
+    if (!v || v === currentName) { onCancel(); return; }
+    if (!/^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$/.test(v)) {
+      setError('Lowercase, hyphens, underscores only');
+      return;
+    }
+    onConfirm(v);
+  };
+
+  return (
+    <div className="flex items-center gap-1 flex-1 min-w-0" onClick={e => e.stopPropagation()}>
+      <div className="flex-1 space-y-0.5">
+        <input
+          autoFocus
+          type="text"
+          value={val}
+          maxLength={60}
+          onChange={e => { setVal(e.target.value); setError(''); }}
+          onKeyDown={e => { if (e.key === 'Enter') handleSubmit(); if (e.key === 'Escape') onCancel(); }}
+          className="w-full bg-transparent border-b border-primary outline-none text-sm font-medium px-1 font-mono"
+        />
+        {error && <p className="text-xs text-destructive px-1">{error}</p>}
+      </div>
+      <button onClick={handleSubmit} className="p-1 text-green-600 hover:bg-green-50 rounded shrink-0"><Check className="w-3.5 h-3.5" /></button>
+      <button onClick={onCancel} className="p-1 text-muted-foreground hover:bg-muted rounded shrink-0"><X className="w-3.5 h-3.5" /></button>
+    </div>
+  );
+}
+
 // ── Tree node ─────────────────────────────────────────────────────────────────
 
-function TreeNode({ item, depth, activePath, onSelectFile, onDeleteFile, onDeleteFolder, onNewFile, onNewFolder }) {
+function TreeNode({ item, depth, activePath, onSelectFile, onDeleteFile, onDeleteFolder, onNewPage, onNewFolder, onRenameFolder }) {
   const [open, setOpen] = useState(depth === 0);
+  const [renaming, setRenaming] = useState(false);
+
+  const displayLabel = item.displayName || item.name;
 
   if (item.type === 'file') {
     const isActive = activePath === item.path;
@@ -93,7 +219,7 @@ function TreeNode({ item, depth, activePath, onSelectFile, onDeleteFile, onDelet
       >
         <div className="flex items-center gap-2 min-w-0">
           <FileText className="w-3.5 h-3.5 shrink-0 text-blue-500" />
-          <span className="truncate">{item.name}.md</span>
+          <span className="truncate">{displayLabel}</span>
         </div>
         <button
           onClick={e => { e.stopPropagation(); onDeleteFile(item); }}
@@ -111,36 +237,53 @@ function TreeNode({ item, depth, activePath, onSelectFile, onDeleteFile, onDelet
       <div
         className="flex items-center justify-between gap-1 px-2 py-1.5 rounded-md cursor-pointer group hover:bg-muted/50 text-sm"
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
-        onClick={() => setOpen(v => !v)}
+        onClick={() => !renaming && setOpen(v => !v)}
       >
-        <div className="flex items-center gap-1.5 min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0 flex-1">
           <ChevronRight className={cn('w-3.5 h-3.5 shrink-0 text-muted-foreground transition-transform', open && 'rotate-90')} />
           <Folder className="w-3.5 h-3.5 shrink-0 text-yellow-500" />
-          <span className="font-medium truncate">{item.name}</span>
+          {renaming ? (
+            <FolderRenameInput
+              currentName={item.name}
+              onConfirm={(newName) => { setRenaming(false); onRenameFolder(item, newName); }}
+              onCancel={() => setRenaming(false)}
+            />
+          ) : (
+            <span className="font-medium truncate">{displayLabel}</span>
+          )}
         </div>
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-          <button
-            onClick={e => { e.stopPropagation(); onNewFile(item.path); }}
-            className="p-1 rounded text-muted-foreground hover:text-foreground"
-            title="New file here"
-          >
-            <FilePlus className="w-3 h-3" />
-          </button>
-          <button
-            onClick={e => { e.stopPropagation(); onNewFolder(item.path); }}
-            className="p-1 rounded text-muted-foreground hover:text-foreground"
-            title="New folder here"
-          >
-            <FolderPlus className="w-3 h-3" />
-          </button>
-          <button
-            onClick={e => { e.stopPropagation(); onDeleteFolder(item); }}
-            className="p-1 rounded text-muted-foreground hover:text-destructive"
-            title="Delete folder"
-          >
-            <Trash2 className="w-3 h-3" />
-          </button>
-        </div>
+        {!renaming && (
+          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+            <button
+              onClick={e => { e.stopPropagation(); onNewPage(item.path); }}
+              className="p-1 rounded text-muted-foreground hover:text-foreground"
+              title="New page here"
+            >
+              <FilePlus className="w-3 h-3" />
+            </button>
+            <button
+              onClick={e => { e.stopPropagation(); onNewFolder(item.path); }}
+              className="p-1 rounded text-muted-foreground hover:text-foreground"
+              title="New folder here"
+            >
+              <FolderPlus className="w-3 h-3" />
+            </button>
+            <button
+              onClick={e => { e.stopPropagation(); setRenaming(true); }}
+              className="p-1 rounded text-muted-foreground hover:text-foreground"
+              title="Rename folder"
+            >
+              <Pencil className="w-3 h-3" />
+            </button>
+            <button
+              onClick={e => { e.stopPropagation(); onDeleteFolder(item); }}
+              className="p-1 rounded text-muted-foreground hover:text-destructive"
+              title="Delete folder"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          </div>
+        )}
       </div>
       {open && (
         <div>
@@ -153,8 +296,9 @@ function TreeNode({ item, depth, activePath, onSelectFile, onDeleteFile, onDelet
               onSelectFile={onSelectFile}
               onDeleteFile={onDeleteFile}
               onDeleteFolder={onDeleteFolder}
-              onNewFile={onNewFile}
+              onNewPage={onNewPage}
               onNewFolder={onNewFolder}
+              onRenameFolder={onRenameFolder}
             />
           ))}
           {(item.items || []).length === 0 && (
@@ -164,6 +308,56 @@ function TreeNode({ item, depth, activePath, onSelectFile, onDeleteFile, onDelet
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Edit Book Modal ────────────────────────────────────────────────────────────
+
+function EditBookModal({ book, onSave, onCancel }) {
+  const [name, setName] = useState(book.name || '');
+  const [description, setDescription] = useState(book.description || '');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    onSave({ name: name.trim(), description: description.trim() });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-card border rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold">Edit Book Info</h3>
+          <button onClick={onCancel} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4" /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Book Name</label>
+            <input
+              autoFocus
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-ring bg-card"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Description</label>
+            <input
+              type="text"
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              placeholder="Optional description"
+              className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-ring bg-card"
+            />
+          </div>
+          <div className="flex gap-3 justify-end pt-1">
+            <button type="button" onClick={onCancel} className="px-4 py-2 text-sm rounded-md border hover:bg-muted transition-colors">Cancel</button>
+            <button type="submit" className="px-4 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">Save</button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
@@ -182,8 +376,9 @@ export default function BookViewer() {
 
   // Modal state
   const [confirmDelete, setConfirmDelete] = useState(null); // { type: 'file'|'folder', item }
-  const [newFileIn, setNewFileIn] = useState(null);    // folder path or '' for root
-  const [newFolderIn, setNewFolderIn] = useState(null); // folder path or '' for root
+  const [newPageIn, setNewPageIn] = useState(null);      // folder path or '' for root
+  const [newFolderIn, setNewFolderIn] = useState(null);  // folder path or '' for root
+  const [editingBook, setEditingBook] = useState(false);
 
   const loadMap = useCallback(async () => {
     setLoading(true);
@@ -215,11 +410,11 @@ export default function BookViewer() {
     await loadMap();
   };
 
-  const handleCreateFile = async (name) => {
-    const folderPrefix = newFileIn ? `${newFileIn}/` : '';
-    const filePath = `${folderPrefix}${name}`;
-    setNewFileIn(null);
-    const res = await api.books.saveFile(projectId, bookSlug, filePath, '');
+  const handleCreatePage = async ({ displayName, slug }) => {
+    const folderPrefix = newPageIn ? `${newPageIn}/` : '';
+    const filePath = `${folderPrefix}${slug}`;
+    setNewPageIn(null);
+    const res = await api.books.saveFile(projectId, bookSlug, filePath, '', displayName);
     if (res.success) {
       await loadMap();
       navigate(`/project/${projectId}/book/${bookSlug}/edit?path=${encodeURIComponent(res.data.path)}`);
@@ -234,6 +429,28 @@ export default function BookViewer() {
     await loadMap();
   };
 
+  const handleRenameFolder = async (item, newName) => {
+    const res = await api.books.renameFolder(projectId, bookSlug, item.path, newName);
+    if (res.success) {
+      // If active file was under this folder, clear it
+      if (activePath && activePath.startsWith(item.path + '/')) {
+        setActivePath(null);
+        setFileContent(null);
+      }
+      await loadMap();
+    } else {
+      alert(res.error || 'Failed to rename folder');
+    }
+  };
+
+  const handleSaveBookEdit = async ({ name, description }) => {
+    const res = await api.books.update(projectId, bookSlug, { name, description });
+    if (res.success) {
+      setMap(m => ({ ...m, name: res.data.name, description: res.data.description }));
+    }
+    setEditingBook(false);
+  };
+
   if (loading) return (
     <div className="flex items-center justify-center h-60">
       <Loader2 className="animate-spin text-muted-foreground w-6 h-6" />
@@ -244,23 +461,54 @@ export default function BookViewer() {
     <div className="text-center text-muted-foreground py-20">Book not found.</div>
   );
 
+  const activeDisplayName = activePath
+    ? (() => {
+        const flat = (items) => items.flatMap(i => i.type === 'folder' ? flat(i.items || []) : [i]);
+        const found = flat(map.tree?.items || []).find(i => i.path === activePath);
+        return found?.displayName || found?.name || activePath;
+      })()
+    : null;
+
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <BookOpen className="w-6 h-6 text-primary" />
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">{map.name}</h1>
-            {map.description && <p className="text-sm text-muted-foreground">{map.description}</p>}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <button
+            onClick={() => navigate(`/project/${projectId}?tab=books`)}
+            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+            title="Back to books"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <BookOpen className="w-6 h-6 text-primary shrink-0" />
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold tracking-tight truncate">{map.name}</h1>
+              <button
+                onClick={() => setEditingBook(true)}
+                className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+                title="Edit book info"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            {map.description && <p className="text-sm text-muted-foreground truncate">{map.description}</p>}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
+          <Link
+            to={`/project/${projectId}/book/${bookSlug}/read`}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm border rounded-md hover:bg-muted transition-colors"
+            title="Read book"
+          >
+            <BookMarked className="w-4 h-4" /> Read
+          </Link>
           <button
-            onClick={() => setNewFileIn('')}
+            onClick={() => setNewPageIn('')}
             className="flex items-center gap-2 px-3 py-1.5 text-sm border rounded-md hover:bg-muted transition-colors"
           >
-            <FilePlus className="w-4 h-4" /> New File
+            <FilePlus className="w-4 h-4" /> New Page
           </button>
           <button
             onClick={() => setNewFolderIn('')}
@@ -274,9 +522,9 @@ export default function BookViewer() {
       {/* Split view */}
       <div className="flex gap-4 border rounded-lg overflow-hidden bg-card min-h-[520px]">
         {/* Sidebar tree */}
-        <div className="w-60 border-r flex-shrink-0 overflow-y-auto p-2">
+        <div className="w-64 border-r flex-shrink-0 overflow-y-auto p-2">
           {(map.tree?.items || []).length === 0 ? (
-            <p className="text-xs text-muted-foreground italic p-2">No files yet. Create one above.</p>
+            <p className="text-xs text-muted-foreground italic p-2">No pages yet. Create one above.</p>
           ) : (
             (map.tree.items || []).map(item => (
               <TreeNode
@@ -287,8 +535,9 @@ export default function BookViewer() {
                 onSelectFile={handleSelectFile}
                 onDeleteFile={(item) => setConfirmDelete({ type: 'file', item })}
                 onDeleteFolder={(item) => setConfirmDelete({ type: 'folder', item })}
-                onNewFile={(parentPath) => setNewFileIn(parentPath)}
+                onNewPage={(parentPath) => setNewPageIn(parentPath)}
                 onNewFolder={(parentPath) => setNewFolderIn(parentPath)}
+                onRenameFolder={handleRenameFolder}
               />
             ))
           )}
@@ -303,26 +552,29 @@ export default function BookViewer() {
           ) : fileContent !== null ? (
             <div className="p-6">
               <div className="flex items-center justify-between mb-4 pb-3 border-b">
-                <code className="text-xs text-muted-foreground font-mono bg-muted px-2 py-1 rounded">{activePath}</code>
+                <div className="min-w-0">
+                  <p className="font-medium text-sm truncate">{activeDisplayName}</p>
+                  <code className="text-xs text-muted-foreground font-mono">{activePath}</code>
+                </div>
                 <Link
                   to={`/project/${projectId}/book/${bookSlug}/edit?path=${encodeURIComponent(activePath)}`}
-                  className="flex items-center gap-2 px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shrink-0"
                 >
                   <Edit className="w-3.5 h-3.5" /> Edit
                 </Link>
               </div>
               {fileContent.trim() ? (
-                <div className="prose">
+                <div className="prose prose-sm max-w-none">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{fileContent}</ReactMarkdown>
                 </div>
               ) : (
-                <p className="text-muted-foreground italic text-sm">This file is empty. Click Edit to add content.</p>
+                <p className="text-muted-foreground italic text-sm">This page is empty. Click Edit to add content.</p>
               )}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-center p-8 text-muted-foreground">
               <FileText className="w-12 h-12 mb-3 opacity-30" />
-              <p className="text-sm">Select a file from the tree to preview it here.</p>
+              <p className="text-sm">Select a page from the tree to preview it here.</p>
             </div>
           )}
         </div>
@@ -331,27 +583,32 @@ export default function BookViewer() {
       {/* Modals */}
       {confirmDelete && (
         <ConfirmModal
-          message={`Delete "${confirmDelete.item.name}"${confirmDelete.type === 'folder' ? ' and all its contents' : ''}? This cannot be undone.`}
+          message={`Delete "${confirmDelete.item.displayName || confirmDelete.item.name}"${confirmDelete.type === 'folder' ? ' and all its contents' : ''}? This cannot be undone.`}
           onConfirm={handleDeleteConfirm}
           onCancel={() => setConfirmDelete(null)}
         />
       )}
-      {newFileIn !== null && (
-        <NewItemModal
-          title={`New File${newFileIn ? ` in ${newFileIn}` : ' at root'}`}
-          placeholder="file-name"
-          hint="Lowercase, hyphens, underscores only. .md is auto-appended."
-          onConfirm={handleCreateFile}
-          onCancel={() => setNewFileIn(null)}
+      {newPageIn !== null && (
+        <NewPageModal
+          title={`New Page${newPageIn ? ` in ${newPageIn}` : ' at root'}`}
+          parentPath={newPageIn || null}
+          onConfirm={handleCreatePage}
+          onCancel={() => setNewPageIn(null)}
         />
       )}
       {newFolderIn !== null && (
-        <NewItemModal
+        <NewFolderModal
           title={`New Folder${newFolderIn ? ` in ${newFolderIn}` : ' at root'}`}
-          placeholder="folder-name"
-          hint="Lowercase, hyphens, underscores only."
+          parentPath={newFolderIn || null}
           onConfirm={handleCreateFolder}
           onCancel={() => setNewFolderIn(null)}
+        />
+      )}
+      {editingBook && map && (
+        <EditBookModal
+          book={{ name: map.name, description: map.description }}
+          onSave={handleSaveBookEdit}
+          onCancel={() => setEditingBook(false)}
         />
       )}
     </div>

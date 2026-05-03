@@ -14,10 +14,18 @@ exports.listBooks = async (req, res, next) => {
 
 exports.createBook = async (req, res, next) => {
   try {
-    const { name, description } = req.body;
+    const { name, slug, description } = req.body;
     if (!name) return res.status(400).json({ success: false, error: 'Book name is required' });
-    const book = await bookService.createBook(req.params.projectId, { name, description });
+    const book = await bookService.createBook(req.params.projectId, { name, slug, description });
     res.status(201).json({ success: true, data: book });
+  } catch (err) { handleErr(err, res, next); }
+};
+
+exports.updateBook = async (req, res, next) => {
+  try {
+    const { name, description } = req.body;
+    const book = await bookService.updateBook(req.params.projectId, req.params.bookSlug, { name, description });
+    res.json({ success: true, data: book });
   } catch (err) { handleErr(err, res, next); }
 };
 
@@ -53,9 +61,9 @@ exports.getFile = async (req, res, next) => {
 
 exports.saveFile = async (req, res, next) => {
   try {
-    const { path: filePath, content } = req.body;
+    const { path: filePath, content, displayName } = req.body;
     if (!filePath) return res.status(400).json({ success: false, error: 'Body field "path" is required' });
-    const file = await bookService.saveFile(req.params.projectId, req.params.bookSlug, filePath, content || '');
+    const file = await bookService.saveFile(req.params.projectId, req.params.bookSlug, filePath, content || '', displayName);
     res.json({ success: true, data: file });
   } catch (err) { handleErr(err, res, next); }
 };
@@ -71,10 +79,20 @@ exports.deleteFile = async (req, res, next) => {
 
 exports.createFolder = async (req, res, next) => {
   try {
-    const { path: folderPath } = req.body;
+    const { path: folderPath, displayName } = req.body;
     if (!folderPath) return res.status(400).json({ success: false, error: 'Body field "path" is required' });
-    const folder = await bookService.createFolder(req.params.projectId, req.params.bookSlug, folderPath);
+    const folder = await bookService.createFolder(req.params.projectId, req.params.bookSlug, folderPath, displayName);
     res.status(201).json({ success: true, data: folder });
+  } catch (err) { handleErr(err, res, next); }
+};
+
+exports.renameFolder = async (req, res, next) => {
+  try {
+    const { path: folderPath, newName } = req.body;
+    if (!folderPath) return res.status(400).json({ success: false, error: 'Body field "path" is required' });
+    if (!newName) return res.status(400).json({ success: false, error: 'Body field "newName" is required' });
+    const result = await bookService.renameFolder(req.params.projectId, req.params.bookSlug, folderPath, newName);
+    res.json({ success: true, data: result });
   } catch (err) { handleErr(err, res, next); }
 };
 
