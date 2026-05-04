@@ -270,6 +270,107 @@ class BookService {
     }
   }
 
+  async renamePage(projectName, bookSlug, filePath, { displayName, newSlug }) {
+    const parts = filePath.split('/').filter(Boolean);
+    const bookPath = this.getBookPath(projectName, bookSlug);
+    const fileAbs = path.join(bookPath, ...parts);
+
+    if (!(await fsService.exists(fileAbs))) {
+      throw Object.assign(new Error(`File "${filePath}" not found`), { statusCode: 404 });
+    }
+
+    const parentAbs = parts.length === 1 ? bookPath : path.join(bookPath, ...parts.slice(0, -1));
+    const parentIndex = await this.readIndex(parentAbs);
+    if (!parentIndex) throw Object.assign(new Error('Parent folder not found'), { statusCode: 404 });
+
+    const currentStem = parts[parts.length - 1].replace('.md', '');
+    const targetStem = newSlug ? newSlug.trim() : currentStem;
+
+    if (newSlug && newSlug.trim() !== currentStem) {
+      const slugErr = validateSlug(targetStem);
+      if (slugErr) throw Object.assign(new Error(slugErr), { statusCode: 400 });
+
+      const newFileName = `${targetStem}.md`;
+      const newParts = [...parts.slice(0, -1), newFileName];
+      const newFilePath = newParts.join('/');
+      const newFileAbs = path.join(bookPath, ...newParts);
+
+      if (await fsService.exists(newFileAbs)) {
+        throw Object.assign(new Error(`A page with slug "${targetStem}" already exists`), { statusCode: 400 });
+      }
+
+      await fs.rename(fileAbs, newFileAbs);
+
+      parentIndex.items = parentIndex.items.map(item =>
+        item.path === filePath
+          ? { ...item, name: targetStem, path: newFilePath, displayName: displayName !== undefined ? displayName : (item.displayName || item.name) }
+          : item
+      );
+      parentIndex.updatedAt = new Date().toISOString();
+      await this.writeIndex(parentAbs, parentIndex);
+
+      return { oldPath: filePath, newPath: newFilePath };
+    }
+
+    // Only updating displayName, no file rename
+    if (displayName !== undefined) {
+      parentIndex.items = parentIndex.items.map(item =>
+        item.path === filePath ? { ...item, displayName } : item
+      );
+      parentIndex.updatedAt = new Date().toISOString();
+      await this.writeIndex(parentAbs, parentIndex);
+    }
+
+    return { oldPath: filePath, newPath: filePath };
+  }
+
+  async moveFile(projectName, bookSlug, filePath, targetFolderPath) {
+    const parts = filePath.split('/').filter(Boolean);
+    const fileName = parts[parts.length - 1];
+    const bookPath = this.getBookPath(projectName, bookSlug);
+    const fileAbs = path.join(bookPath, ...parts);
+
+    if (!(await fsService.exists(fileAbs))) {
+      throw Object.assign(new Error(`File "${filePath}" not found`), { statusCode: 404 });
+    }
+
+    const targetParts = targetFolderPath ? targetFolderPath.split('/').filter(Boolean) : [];
+    const targetFolderAbs = targetParts.length > 0 ? path.join(bookPath, ...targetParts) : bookPath;
+
+    if (targetParts.length > 0 && !(await fsService.exists(targetFolderAbs))) {
+      throw Object.assign(new Error(`Target folder "${targetFolderPath}" not found`), { statusCode: 404 });
+    }
+
+    const newFileParts = [...targetParts, fileName];
+    const newFilePath = newFileParts.join('/');
+
+    if (newFilePath === filePath) return { path: filePath };
+
+    const newFileAbs = path.join(bookPath, ...newFileParts);
+    if (await fsService.exists(newFileAbs)) {
+      throw Object.assign(new Error(`A page named "${fileName}" already exists in the target folder`), { statusCode: 400 });
+    }
+
+    // Grab the file item metadata before removing it
+    const oldParentParts = parts.slice(0, -1);
+    const oldParentAbs = oldParentParts.length > 0 ? path.join(bookPath, ...oldParentParts) : bookPath;
+    const oldParentIndex = await this.readIndex(oldParentAbs);
+    const fileItem = oldParentIndex?.items.find(i => i.path === filePath);
+
+    await fs.rename(fileAbs, newFileAbs);
+
+    await this.syncFolderIndex(oldParentAbs, 'remove', { path: filePath });
+    await this.syncFolderIndex(targetFolderAbs, 'add', {
+      type: 'file',
+      name: fileItem?.name || fileName.replace('.md', ''),
+      displayName: fileItem?.displayName || fileItem?.name || fileName.replace('.md', ''),
+      path: newFilePath,
+      description: fileItem?.description || '',
+    });
+
+    return { oldPath: filePath, newPath: newFilePath };
+  }
+
   async deleteFolder(projectName, bookSlug, folderPath) {
     const pathErr = validatePath(folderPath);
     if (pathErr) throw Object.assign(new Error(pathErr), { statusCode: 400 });

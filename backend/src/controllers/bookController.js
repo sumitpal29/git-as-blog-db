@@ -68,6 +68,24 @@ exports.saveFile = async (req, res, next) => {
   } catch (err) { handleErr(err, res, next); }
 };
 
+exports.renamePage = async (req, res, next) => {
+  try {
+    const { path: filePath, displayName, newSlug } = req.body;
+    if (!filePath) return res.status(400).json({ success: false, error: 'Body field "path" is required' });
+    const result = await bookService.renamePage(req.params.projectId, req.params.bookSlug, filePath, { displayName, newSlug });
+    res.json({ success: true, data: result });
+  } catch (err) { handleErr(err, res, next); }
+};
+
+exports.moveFile = async (req, res, next) => {
+  try {
+    const { path: filePath, targetFolder } = req.body;
+    if (!filePath) return res.status(400).json({ success: false, error: 'Body field "path" is required' });
+    const result = await bookService.moveFile(req.params.projectId, req.params.bookSlug, filePath, targetFolder ?? '');
+    res.json({ success: true, data: result });
+  } catch (err) { handleErr(err, res, next); }
+};
+
 exports.deleteFile = async (req, res, next) => {
   try {
     const filePath = req.query.path;

@@ -163,6 +163,22 @@ export const api = {
       });
       return res.json();
     },
+    renamePage: async (projectId, bookSlug, filePath, { displayName, newSlug }) => {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/books/${bookSlug}/files`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: filePath, displayName, newSlug }),
+      });
+      return res.json();
+    },
+    moveFile: async (projectId, bookSlug, filePath, targetFolder) => {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/books/${bookSlug}/files/move`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: filePath, targetFolder }),
+      });
+      return res.json();
+    },
     deleteFile: async (projectId, bookSlug, filePath) => {
       const res = await fetch(`${API_BASE}/projects/${projectId}/books/${bookSlug}/files?path=${encodeURIComponent(filePath)}`, { method: 'DELETE' });
       return res.json();

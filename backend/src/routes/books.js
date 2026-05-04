@@ -12,6 +12,8 @@ router.get('/:bookSlug/map', c.getBookMap);
 
 router.get('/:bookSlug/files', c.getFile);
 router.post('/:bookSlug/files', c.saveFile);
+router.patch('/:bookSlug/files', c.renamePage);
+router.post('/:bookSlug/files/move', c.moveFile);
 router.delete('/:bookSlug/files', c.deleteFile);
 
 router.post('/:bookSlug/folders', c.createFolder);
