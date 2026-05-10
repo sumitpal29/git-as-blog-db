@@ -119,8 +119,20 @@ export default function ProjectList() {
     <div className="min-h-screen bg-background flex flex-col items-center pt-20 px-4">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight">Blog CMS</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Static CMS</h1>
           <p className="text-muted-foreground mt-2">Select or create a project to get started</p>
+        </div>
+
+        <div className="bg-card border rounded-lg p-5 shadow-sm">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">What you can do</h2>
+          <ul className="grid grid-cols-2 gap-2 text-sm text-foreground">
+            <li className="flex items-start gap-2"><span className="mt-0.5 text-primary">✦</span>Write &amp; edit blog posts</li>
+            <li className="flex items-start gap-2"><span className="mt-0.5 text-primary">✦</span>Manage books &amp; chapters</li>
+            <li className="flex items-start gap-2"><span className="mt-0.5 text-primary">✦</span>Upload &amp; organise assets</li>
+            <li className="flex items-start gap-2"><span className="mt-0.5 text-primary">✦</span>Edit structured data files</li>
+            <li className="flex items-start gap-2"><span className="mt-0.5 text-primary">✦</span>Live markdown preview</li>
+            <li className="flex items-start gap-2"><span className="mt-0.5 text-primary">✦</span>Multiple projects</li>
+          </ul>
         </div>
 
         <div className="bg-card border rounded-lg p-6 shadow-sm space-y-6">
@@ -130,7 +142,7 @@ export default function ProjectList() {
               placeholder="New project name..."
               value={newProjectName}
               onChange={(e) => setNewProjectName(e.target.value)}
-              maxLength={60}
+              maxLength={100}
               className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-card"
             />
             <button
@@ -161,7 +173,7 @@ export default function ProjectList() {
                           value={renameValue}
                           onChange={e => setRenameValue(e.target.value)}
                           onKeyDown={e => { if (e.key === 'Enter') confirmRename(e, project); if (e.key === 'Escape') cancelRename(); }}
-                          maxLength={60}
+                          maxLength={100}
                           className="flex-1 bg-transparent outline-none text-sm font-medium"
                           onClick={e => e.stopPropagation()}
                         />
