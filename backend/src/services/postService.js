@@ -34,7 +34,7 @@ class PostService {
       ...metadata
     };
 
-    const fileContent = matter.stringify(content || '', mData);
+    const fileContent = matter.stringify(content || '', mData, { lineWidth: -1 });
     await fsService.writeFile(postPath, fileContent);
 
     return { slug, frontmatter: mData, content: content || '' };
@@ -67,7 +67,7 @@ class PostService {
     const newContent = updateData.content !== undefined ? updateData.content : post.content;
 
     const newPostPath = await this.getPostPath(projectName, newSlug);
-    const fileContent = matter.stringify(newContent, updatedFrontmatter);
+    const fileContent = matter.stringify(newContent, updatedFrontmatter, { lineWidth: -1 });
     
     const oldPostPath = await this.getPostPath(projectName, slug);
     

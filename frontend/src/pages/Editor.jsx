@@ -1,10 +1,35 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { ArrowLeft, Save, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Save, Eye, EyeOff, Clock, ImageIcon, Wand2 } from 'lucide-react';
 import { cn } from '../lib/utils';
+
+const STOP_WORDS = new Set([
+  'a', 'an', 'the', 'and', 'but', 'or', 'for', 'nor', 'so', 'yet',
+  'at', 'by', 'in', 'of', 'on', 'to', 'up', 'as', 'is', 'it',
+  'be', 'do', 'if', 'no', 'we',
+]);
+
+function generateSlug(title) {
+  const words = title
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '') // strip combining diacritical marks (café → cafe)
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  const meaningful = words.filter((w) => !STOP_WORDS.has(w));
+  const base = (meaningful.length > 0 ? meaningful : words).join('-');
+
+  if (base.length <= 60) return base;
+  const truncated = base.slice(0, 60);
+  const lastHyphen = truncated.lastIndexOf('-');
+  return lastHyphen > 0 ? truncated.slice(0, lastHyphen) : truncated;
+}
 
 export default function Editor() {
   const { projectId, slug } = useParams();
@@ -21,7 +46,17 @@ export default function Editor() {
     heroImage: '',
     slug: '',
     draft: true,
+    publishedAt: '',
   });
+
+  const toDatetimeLocal = (iso) => {
+    if (!iso) return '';
+    try {
+      return new Date(iso).toISOString().slice(0, 16);
+    } catch {
+      return '';
+    }
+  };
   const [content, setContent] = useState('');
 
   useEffect(() => {
@@ -41,6 +76,7 @@ export default function Editor() {
           heroImage: frontmatter.heroImage || '',
           slug: res.data.slug,
           draft: frontmatter.draft !== undefined ? frontmatter.draft : true,
+          publishedAt: toDatetimeLocal(frontmatter.publishedAt),
         });
         setContent(rawContent || '');
       } else {
@@ -62,13 +98,15 @@ export default function Editor() {
         metadata: {
           title: formData.title,
           description: formData.description,
-          heroImage: formData.heroImage,
+          heroImage: formData.heroImage || undefined,
           draft: formData.draft,
+          publishedAt: formData.publishedAt ? new Date(formData.publishedAt).toISOString() : undefined,
         }
       };
       
       if (isNew) {
         // Create new
+        if (formData.slug.trim()) payload.metadata.slug = formData.slug.trim();
         const res = await api.posts.create(projectId, { ...payload, ...payload.metadata });
         if (res.success) {
           navigate(`/project/${projectId}/post/${res.data.slug}`, { replace: true });
@@ -157,7 +195,7 @@ export default function Editor() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-muted-foreground uppercase">Hero Image URL</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase">Hero Image URL (optional)</label>
                 <input
                   type="text"
                   placeholder="https://..."
@@ -165,18 +203,64 @@ export default function Editor() {
                   onChange={(e) => setFormData(f => ({ ...f, heroImage: e.target.value }))}
                   className="w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-1 focus:ring-ring"
                 />
+                {formData.heroImage && (
+                  <div className="relative mt-2 rounded-md overflow-hidden border bg-muted h-28">
+                    <img
+                      src={formData.heroImage}
+                      alt="Hero preview"
+                      className="w-full h-full object-cover"
+                      onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                    />
+                    <div className="absolute inset-0 hidden items-center justify-center text-xs text-muted-foreground gap-1">
+                      <ImageIcon className="w-4 h-4" /> Invalid image URL
+                    </div>
+                  </div>
+                )}
               </div>
-              
+
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-muted-foreground uppercase">Custom Slug (optional)</label>
-                <input
-                  type="text"
-                  placeholder="auto-generated-from-title"
-                  value={formData.slug}
-                  onChange={(e) => setFormData(f => ({ ...f, slug: e.target.value }))}
-                  disabled={isNew}
-                  className="w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-1 focus:ring-ring disabled:bg-muted disabled:text-muted-foreground"
-                />
+                <label className="text-xs font-semibold text-muted-foreground uppercase">Slug</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="auto-generated-from-title"
+                    value={formData.slug}
+                    onChange={(e) => setFormData(f => ({ ...f, slug: e.target.value }))}
+                    className="flex-1 px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-1 focus:ring-ring font-mono"
+                  />
+                  {formData.title.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => setFormData(f => ({ ...f, slug: generateSlug(f.title) }))}
+                      className="flex items-center gap-1 px-3 py-2 text-xs font-medium border rounded-md hover:bg-muted transition-colors whitespace-nowrap"
+                      title="Generate slug from title"
+                    >
+                      <Wand2 className="w-3.5 h-3.5" /> Generate
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground uppercase">Published Date (optional)</label>
+                <div className="flex gap-2">
+                  <input
+                    type="datetime-local"
+                    value={formData.publishedAt}
+                    onChange={(e) => setFormData(f => ({ ...f, publishedAt: e.target.value }))}
+                    className="flex-1 px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-1 focus:ring-ring"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFormData(f => ({ ...f, publishedAt: new Date().toISOString().slice(0, 16) }))}
+                    className="flex items-center gap-1 px-3 py-2 text-xs font-medium border rounded-md hover:bg-muted transition-colors whitespace-nowrap"
+                    title="Use current timestamp"
+                  >
+                    <Clock className="w-3.5 h-3.5" /> Now
+                  </button>
+                </div>
               </div>
             </div>
 

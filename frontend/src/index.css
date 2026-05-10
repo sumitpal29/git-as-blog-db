@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes zoomIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
 @theme {
   --color-border: var(--border);
   --color-input: var(--input);
@@ -26,27 +35,97 @@
 }
 
 @layer base {
+  /* ── light — Ice White, Cobalt, Ink (light.json) ─────────── */
   :root {
-    --background: #fcfaf1;
-    --foreground: #616163;
+    --background: #f6fcff;          /* Ice White */
+    --foreground: #1f2937;          /* Ink */
     --card: #ffffff;
-    --card-foreground: #616163;
+    --card-foreground: #1f2937;
     --popover: #ffffff;
-    --popover-foreground: #09090b;
-    --primary: #18181b;
-    --primary-foreground: #fafafa;
-    --secondary: #f4f4f5;
-    --secondary-foreground: #18181b;
-    --muted: #f4f4f5;
-    --muted-foreground: #71717a;
-    --accent: #f4f4f5;
-    --accent-foreground: #18181b;
-    --destructive: #ff8787;
-    --destructive-foreground: #fafafa;
-    --border: #e4e4e7;
-    --input: #e4e4e7;
-    --ring: #18181b;
+    --popover-foreground: #1f2937;
+    --primary: #2563eb;             /* Cobalt */
+    --primary-foreground: #ffffff;
+    --secondary: #e5e7eb;           /* Mist Gray */
+    --secondary-foreground: #1f2937;
+    --muted: #f9fafb;               /* Cool Gray */
+    --muted-foreground: #6b7280;
+    --accent: #f9fafb;
+    --accent-foreground: #1f2937;
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
+    --border: #e5e7eb;              /* Mist Gray */
+    --input: #e5e7eb;
+    --ring: #2563eb;                /* Cobalt */
     --radius: 0.5rem;
+  }
+
+  /* ── dark — Midnight, Royal Blue, Ghost White (dark.json) ── */
+  .dark {
+    --background: #111827;          /* Midnight */
+    --foreground: #f9fafb;          /* Ghost White */
+    --card: #1f2937;                /* Slate */
+    --card-foreground: #f9fafb;
+    --popover: #1f2937;
+    --popover-foreground: #f9fafb;
+    --primary: #3b82f6;             /* Royal Blue */
+    --primary-foreground: #ffffff;
+    --secondary: #1e3a5f;           /* Navy Deep */
+    --secondary-foreground: #93c5fd; /* Sky Blue */
+    --muted: #1e3a5f;               /* Navy Deep */
+    --muted-foreground: #94a3b8;
+    --accent: #1e3a5f;
+    --accent-foreground: #93c5fd;   /* Sky Blue */
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
+    --border: #283548;              /* Between Midnight and Slate */
+    --input: #283548;
+    --ring: #3b82f6;                /* Royal Blue */
+  }
+
+  /* ── candy — Cream, Dark Olive, Charcoal (candy.json) ────── */
+  .candy {
+    --background: #fffae3;          /* Cream */
+    --foreground: #4a4a2c;          /* Dark Olive */
+    --card: #f0ead0;                /* Warm Parchment */
+    --card-foreground: #4a4a2c;
+    --popover: #f0ead0;
+    --popover-foreground: #4a4a2c;
+    --primary: #4a4a2c;             /* Dark Olive */
+    --primary-foreground: #fffae3;  /* Cream */
+    --secondary: #ece3bf;           /* Parchment-light */
+    --secondary-foreground: #616163; /* Charcoal */
+    --muted: #f0ead0;               /* Warm Parchment */
+    --muted-foreground: #8a8060;
+    --accent: #fad312;              /* Sunshine Yellow */
+    --accent-foreground: #4a4a2c;
+    --destructive: #c0392b;
+    --destructive-foreground: #fffae3;
+    --border: #ddd5b0;
+    --input: #ddd5b0;
+    --ring: #4a4a2c;                /* Dark Olive */
+  }
+
+  /* ── dark-candy — Graphite, Light Green, Vanilla (dark-candy.json) */
+  .dark-candy {
+    --background: #2a2a2a;          /* Graphite */
+    --foreground: #f8edb5;          /* Vanilla Custard */
+    --card: #333333;
+    --card-foreground: #f8edb5;
+    --popover: #333333;
+    --popover-foreground: #f8edb5;
+    --primary: #96eb99;             /* Light Green */
+    --primary-foreground: #2a2a2a;
+    --secondary: #3d3d3d;
+    --secondary-foreground: #f8edb5;
+    --muted: #3d3d3d;
+    --muted-foreground: #b8a87a;    /* Warm golden-muted */
+    --accent: #c98ad3;              /* Amethyst Smoke */
+    --accent-foreground: #2a2a2a;
+    --destructive: #ffa053;         /* Sandy Brown */
+    --destructive-foreground: #2a2a2a;
+    --border: #404040;
+    --input: #404040;
+    --ring: #96eb99;                /* Light Green */
   }
 }
 

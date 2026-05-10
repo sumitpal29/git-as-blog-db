@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../lib/api';
-import { Save, Loader2, GitBranch, Settings2, Database } from 'lucide-react';
+import { Save, Loader2, Settings2, Database } from 'lucide-react';
 
 export default function ProjectSettings() {
   const { projectId } = useParams();
   const [config, setConfig] = useState(null);
-  const [gitConfig, setGitConfig] = useState({ remoteUrl: '', branch: 'main', commitMessage: 'Update blog data' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -17,27 +16,13 @@ export default function ProjectSettings() {
 
   const loadConfig = async () => {
     const res = await api.projects.getConfig(projectId);
-    if (res.success) {
-      setConfig(res.data);
-      // Git config fields are stored under config.git if present
-      if (res.data.git) {
-        setGitConfig({
-          remoteUrl: res.data.git.remoteUrl || '',
-          branch: res.data.git.branch || 'main',
-          commitMessage: res.data.git.commitMessage || 'Update blog data',
-        });
-      }
-    }
+    if (res.success) setConfig(res.data);
     setLoading(false);
   };
 
   const handleSave = async () => {
     setSaving(true);
-    const payload = {
-      ...config,
-      git: gitConfig,
-    };
-    const res = await api.projects.updateConfig(projectId, payload);
+    const res = await api.projects.updateConfig(projectId, config);
     if (res.success) {
       setConfig(res.data);
       setSaved(true);
@@ -53,10 +38,10 @@ export default function ProjectSettings() {
   );
 
   return (
-    <div className="space-y-8 max-w-2xl">
+    <div className="max-w-2xl mx-auto space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground mt-1">Configure project generation and Git sync behaviour</p>
+        <p className="text-muted-foreground mt-1">Configure project generation behaviour</p>
       </div>
 
       {/* Generation Settings */}
@@ -74,7 +59,7 @@ export default function ProjectSettings() {
                 min={1}
                 value={config.pageSize}
                 onChange={e => setConfig(c => ({ ...c, pageSize: parseInt(e.target.value) || 10 }))}
-                className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-ring bg-card"
               />
               <p className="text-xs text-muted-foreground">Posts per JSON page file</p>
             </div>
@@ -100,7 +85,7 @@ export default function ProjectSettings() {
                 value={config.filePrefix}
                 onChange={e => setConfig(c => ({ ...c, filePrefix: e.target.value }))}
                 placeholder="list_"
-                className="flex-1 px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                className="flex-1 px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-ring bg-card"
               />
               <span className="text-muted-foreground text-sm whitespace-nowrap">1.json, 2.json...</span>
             </div>
@@ -116,7 +101,7 @@ export default function ProjectSettings() {
                 type="text"
                 value={config.contentPath}
                 onChange={e => setConfig(c => ({ ...c, contentPath: e.target.value }))}
-                className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-ring bg-card"
               />
             </div>
             <div className="space-y-1.5">
@@ -125,53 +110,9 @@ export default function ProjectSettings() {
                 type="text"
                 value={config.metaPath}
                 onChange={e => setConfig(c => ({ ...c, metaPath: e.target.value }))}
-                className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-ring bg-card"
               />
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Git Settings */}
-      <section className="bg-card border rounded-lg overflow-hidden">
-        <div className="px-6 py-4 border-b flex items-center gap-2">
-          <GitBranch className="w-5 h-5 text-muted-foreground" />
-          <h2 className="text-lg font-semibold">Git Sync</h2>
-        </div>
-        <div className="p-6 space-y-5">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Remote URL</label>
-            <input
-              type="text"
-              placeholder="https://github.com/username/repo.git"
-              value={gitConfig.remoteUrl}
-              onChange={e => setGitConfig(g => ({ ...g, remoteUrl: e.target.value }))}
-              className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-ring font-mono"
-            />
-            <p className="text-xs text-muted-foreground">The Git remote to push content to. If left blank, changes are only committed locally.</p>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Branch</label>
-            <input
-              type="text"
-              placeholder="main"
-              value={gitConfig.branch}
-              onChange={e => setGitConfig(g => ({ ...g, branch: e.target.value }))}
-              className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Default Commit Message</label>
-            <input
-              type="text"
-              placeholder="Update blog data"
-              value={gitConfig.commitMessage}
-              onChange={e => setGitConfig(g => ({ ...g, commitMessage: e.target.value }))}
-              className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-            <p className="text-xs text-muted-foreground">Used when clicking "Sync Git". You can override it each time from the header.</p>
           </div>
         </div>
       </section>

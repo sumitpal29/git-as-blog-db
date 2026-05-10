@@ -1,7 +1,37 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
-import { FolderPlus, Folder, Trash2, Pencil, Check, X } from 'lucide-react';
+import { FolderPlus, Folder, Trash2, Pencil, Check, X, AlertTriangle } from 'lucide-react';
+
+function ConfirmModal({ title, message, onConfirm, onCancel }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-card border rounded-xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-full bg-red-100">
+            <AlertTriangle className="w-5 h-5 text-red-600" />
+          </div>
+          <h3 className="font-semibold text-base">{title}</h3>
+        </div>
+        <p className="text-sm text-muted-foreground">{message}</p>
+        <div className="flex gap-3 justify-end pt-1">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 text-sm rounded-md border hover:bg-muted transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 text-sm rounded-md bg-destructive text-destructive-foreground hover:opacity-90 transition-opacity"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function ProjectList() {
   const [projects, setProjects] = useState([]);
@@ -9,6 +39,7 @@ export default function ProjectList() {
   const [loading, setLoading] = useState(true);
   const [renamingProject, setRenamingProject] = useState(null);
   const [renameValue, setRenameValue] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(null); // project name to delete
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -26,19 +57,21 @@ export default function ProjectList() {
     }
   };
 
-  const handleDelete = async (e, projectName) => {
+  const handleDeleteRequest = (e, projectName) => {
     e.stopPropagation();
-    if (!window.confirm(`Delete project "${projectName}"? This cannot be undone.`)) return;
+    setConfirmDelete(projectName);
+  };
+
+  const handleDeleteConfirm = async () => {
+    const projectName = confirmDelete;
+    setConfirmDelete(null);
     try {
       const res = await api.projects.delete(projectName);
       if (res.success) {
         setProjects(projects.filter(p => p !== projectName));
-      } else {
-        alert(res.error || 'Failed to delete project');
       }
     } catch (err) {
       console.error(err);
-      alert('Failed to delete project');
     }
   };
 
@@ -63,11 +96,9 @@ export default function ProjectList() {
       if (res.success) {
         setProjects(projects.map(p => (p === oldName ? trimmed : p)));
         setRenamingProject(null);
-      } else {
-        alert(res.error || 'Failed to rename');
       }
     } catch (err) {
-      alert('Failed to rename project');
+      console.error('Failed to rename project', err);
     }
   };
 
@@ -78,11 +109,9 @@ export default function ProjectList() {
       const res = await api.projects.create(newProjectName);
       if (res.success) {
         navigate(`/project/${res.data.name}`);
-      } else {
-        alert(res.error);
       }
     } catch (err) {
-      alert('Failed to create project');
+      console.error('Failed to create project', err);
     }
   };
 
@@ -90,8 +119,20 @@ export default function ProjectList() {
     <div className="min-h-screen bg-background flex flex-col items-center pt-20 px-4">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight">Blog CMS</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Static CMS</h1>
           <p className="text-muted-foreground mt-2">Select or create a project to get started</p>
+        </div>
+
+        <div className="bg-card border rounded-lg p-5 shadow-sm">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">What you can do</h2>
+          <ul className="grid grid-cols-2 gap-2 text-sm text-foreground">
+            <li className="flex items-start gap-2"><span className="mt-0.5 text-primary">✦</span>Write &amp; edit blog posts</li>
+            <li className="flex items-start gap-2"><span className="mt-0.5 text-primary">✦</span>Manage books &amp; chapters</li>
+            <li className="flex items-start gap-2"><span className="mt-0.5 text-primary">✦</span>Upload &amp; organise assets</li>
+            <li className="flex items-start gap-2"><span className="mt-0.5 text-primary">✦</span>Edit structured data files</li>
+            <li className="flex items-start gap-2"><span className="mt-0.5 text-primary">✦</span>Live markdown preview</li>
+            <li className="flex items-start gap-2"><span className="mt-0.5 text-primary">✦</span>Multiple projects</li>
+          </ul>
         </div>
 
         <div className="bg-card border rounded-lg p-6 shadow-sm space-y-6">
@@ -101,12 +142,12 @@ export default function ProjectList() {
               placeholder="New project name..."
               value={newProjectName}
               onChange={(e) => setNewProjectName(e.target.value)}
-              maxLength={60}
-              className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+              maxLength={100}
+              className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-card"
             />
             <button
               type="submit"
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md flex items-center gap-2 hover:bg-primary/90"
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-md flex items-center gap-2 hover:bg-primary/90 transition-colors"
             >
               <FolderPlus className="w-4 h-4" />
               Create
@@ -132,7 +173,7 @@ export default function ProjectList() {
                           value={renameValue}
                           onChange={e => setRenameValue(e.target.value)}
                           onKeyDown={e => { if (e.key === 'Enter') confirmRename(e, project); if (e.key === 'Escape') cancelRename(); }}
-                          maxLength={60}
+                          maxLength={100}
                           className="flex-1 bg-transparent outline-none text-sm font-medium"
                           onClick={e => e.stopPropagation()}
                         />
@@ -163,7 +204,7 @@ export default function ProjectList() {
                           <Pencil className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={(e) => handleDelete(e, project)}
+                          onClick={(e) => handleDeleteRequest(e, project)}
                           className="p-3 text-muted-foreground hover:text-destructive hover:bg-red-50 rounded-md border bg-card transition-colors"
                           title="Delete Project"
                         >
@@ -178,6 +219,15 @@ export default function ProjectList() {
           </div>
         </div>
       </div>
+
+      {confirmDelete && (
+        <ConfirmModal
+          title="Delete Project"
+          message={`Delete "${confirmDelete}" and all its content? This cannot be undone.`}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
     </div>
   );
 }
