@@ -94,7 +94,7 @@ class FsService {
   }
   
   /**
-   * List all directories inside a path
+   * List all directories inside a path (top-level only)
    */
   async listDirectories(dirPath) {
     try {
@@ -107,6 +107,30 @@ class FsService {
       logger.error(`Failed to list directories in ${dirPath}`, err);
       throw err;
     }
+  }
+
+  /**
+   * Recursively list all directories, returning relative paths
+   * e.g. ['config', 'config/theme', 'metadata']
+   */
+  async listDirectoriesRecursive(dirPath, prefix = '') {
+    const results = [];
+    if (!(await this.exists(dirPath))) return results;
+    let entries;
+    try {
+      entries = await fs.readdir(dirPath, { withFileTypes: true });
+    } catch (err) {
+      logger.error(`Failed to list directories in ${dirPath}`, err);
+      throw err;
+    }
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
+      const relPath = prefix ? `${prefix}/${entry.name}` : entry.name;
+      results.push(relPath);
+      const nested = await this.listDirectoriesRecursive(path.join(dirPath, entry.name), relPath);
+      results.push(...nested);
+    }
+    return results;
   }
 }
 

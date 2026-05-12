@@ -79,7 +79,7 @@ export const api = {
       return res.json();
     },
     listFiles: async (projectId, folder) => {
-      const res = await fetch(`${API_BASE}/projects/${projectId}/data/${folder}`);
+      const res = await fetch(`${API_BASE}/projects/${projectId}/data/${encodeURIComponent(folder)}`);
       return res.json();
     },
     get: async (projectId, folder, filename) => {
@@ -114,6 +114,14 @@ export const api = {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ newFolder }),
+      });
+      return res.json();
+    },
+    createSubfolder: async (projectId, folder, name) => {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/data/${encodeURIComponent(folder)}/mkdir`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
       });
       return res.json();
     }

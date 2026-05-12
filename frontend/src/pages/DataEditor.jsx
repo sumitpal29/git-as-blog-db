@@ -12,15 +12,17 @@ export default function DataEditor() {
   const location = useLocation();
 
   const queryParams = new URLSearchParams(location.search);
-  const editFolder = queryParams.get('folder');
-  const editFilename = queryParams.get('filename');
-  const isNew = !editFolder || !editFilename;
+  const editFolder = queryParams.get('folder');       // present when editing an existing file
+  const editFilename = queryParams.get('filename');   // present when editing an existing file
+  const defaultFolder = queryParams.get('defaultFolder'); // pre-fill folder for new file in a specific path
+  const isNew = !editFilename;
 
   // Folder state
   const [existingFolders, setExistingFolders] = useState([]);
-  const [folderMode, setFolderMode] = useState(editFolder ? 'existing' : 'create'); // 'existing' | 'create'
+  // If defaultFolder is provided we jump straight to 'create' mode with it pre-filled
+  const [folderMode, setFolderMode] = useState(editFolder && !defaultFolder ? 'existing' : 'create');
   const [folder, setFolder] = useState(editFolder || '');
-  const [newFolderName, setNewFolderName] = useState('');
+  const [newFolderName, setNewFolderName] = useState(defaultFolder || '');
 
   // Filename state
   const [filename, setFilename] = useState(
@@ -39,8 +41,8 @@ export default function DataEditor() {
       .then(res => {
         if (res.success) {
           setExistingFolders(res.data);
-          if (!editFolder && res.data.length > 0) {
-            // default to first existing folder
+          if (!editFolder && !defaultFolder && res.data.length > 0) {
+            // default to first existing folder only when no folder is pre-specified
             setFolder(res.data[0]);
             setFolderMode('existing');
           }
@@ -107,6 +109,10 @@ export default function DataEditor() {
   const handleSave = async () => {
     if (!resolvedFolder) {
       alert('Please select or enter a folder name.');
+      return;
+    }
+    if (/^\/|\/\/|\/$/.test(resolvedFolder)) {
+      alert('Folder path cannot have leading, trailing, or consecutive slashes.');
       return;
     }
     if (!filename.trim()) {
@@ -227,13 +233,16 @@ export default function DataEditor() {
                     ))}
                   </select>
                 ) : (
-                  <input
-                    type="text"
-                    placeholder="e.g. metadata"
-                    value={newFolderName}
-                    onChange={e => setNewFolderName(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-ring text-sm"
-                  />
+                  <>
+                    <input
+                      type="text"
+                      placeholder="e.g. config or config/theme"
+                      value={newFolderName}
+                      onChange={e => setNewFolderName(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+                    />
+                    <p className="text-xs text-muted-foreground">Use <code className="bg-muted px-1 rounded">/</code> to nest inside an existing folder</p>
+                  </>
                 )}
               </div>
             ) : (

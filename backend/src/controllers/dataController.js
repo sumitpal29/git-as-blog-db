@@ -26,15 +26,49 @@ exports.listFiles = async (req, res, next) => {
   try {
     const { projectId, folder } = req.params;
     const folderPath = path.join(fsService.getProjectPath(projectId), folder);
-    
+
     if (!(await fsService.exists(folderPath))) {
-      return res.json({ success: true, data: [] });
+      return res.json({ success: true, data: { files: [], subfolders: [] } });
     }
 
-    const files = await fsService.listFiles(folderPath);
-    const jsonFiles = files.filter(f => f.endsWith('.json'));
-    
-    res.json({ success: true, data: jsonFiles });
+    const [allFiles, allDirs] = await Promise.all([
+      fsService.listFiles(folderPath),
+      fsService.listDirectories(folderPath),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        files: allFiles.filter(f => f.endsWith('.json')),
+        subfolders: allDirs,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.createSubfolder = async (req, res, next) => {
+  try {
+    const { projectId, folder } = req.params;
+    const { name } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, error: 'Subfolder name is required' });
+    }
+    const safeName = name.trim();
+    if (/[/\\]/.test(safeName)) {
+      return res.status(400).json({ success: false, error: 'Subfolder name must not contain slashes' });
+    }
+
+    const subfolderPath = path.join(fsService.getProjectPath(projectId), folder, safeName);
+    if (await fsService.exists(subfolderPath)) {
+      return res.status(409).json({ success: false, error: 'Folder already exists' });
+    }
+
+    await fsService.ensureDir(subfolderPath);
+    logger.info(`Created subfolder ${folder}/${safeName} in ${projectId}`);
+    res.json({ success: true, name: safeName });
   } catch (err) {
     next(err);
   }

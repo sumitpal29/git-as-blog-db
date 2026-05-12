@@ -48,6 +48,196 @@ function InlineRename({ value, onConfirm, onCancel, maxLength = 60 }) {
   );
 }
 
+function FolderRow({
+  path, label, depth, projectId,
+  expandedPaths, folderContents,
+  renamingFolder, renamingFile,
+  creatingFolderIn, newSubfolderName,
+  onToggle, onRenameFolder, onRenamefolderConfirm, onRenameFolderCancel,
+  onRenameFile, onRenameFileConfirm, onRenameFileCancel,
+  onDeleteFile, onQuickView,
+  onStartCreateFolder, onCancelCreateFolder, onNewSubfolderNameChange, onConfirmCreateFolder,
+}) {
+  const isOpen = expandedPaths.has(path);
+  const contents = folderContents[path];
+  const isCreatingHere = creatingFolderIn === path;
+
+  return (
+    <li className="bg-card">
+      {/* Folder header row */}
+      <div
+        className="w-full flex items-center justify-between hover:bg-muted/30 transition-colors group"
+        style={{ paddingLeft: `${16 + depth * 20}px`, paddingRight: '16px', paddingTop: '12px', paddingBottom: '12px' }}
+      >
+        <button onClick={() => onToggle(path)} className="flex items-center gap-3 flex-1 text-left">
+          <Folder className="w-5 h-5 text-blue-500 shrink-0" />
+          {renamingFolder === path ? (
+            <InlineRename
+              value={label}
+              onConfirm={(val) => onRenamefolderConfirm(path, val)}
+              onCancel={onRenameFolderCancel}
+            />
+          ) : (
+            <span className={`font-medium ${depth > 0 ? 'text-sm' : 'text-base'}`}>{label}</span>
+          )}
+        </button>
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {renamingFolder !== path && depth === 0 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onRenameFolder(path); }}
+              className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded"
+              title="Rename Folder"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+        <ChevronRight
+          onClick={() => onToggle(path)}
+          className={`w-5 h-5 text-muted-foreground transition-transform cursor-pointer shrink-0 ${isOpen ? 'rotate-90' : ''}`}
+        />
+      </div>
+
+      {/* Expanded contents */}
+      {isOpen && (
+        <div className="border-t bg-muted/20" style={{ paddingLeft: `${depth * 20}px` }}>
+          {!contents ? (
+            <p className="text-sm text-muted-foreground p-4">Loading...</p>
+          ) : (
+            <>
+              {/* Subfolders */}
+              {contents.subfolders.length > 0 && (
+                <ul className="divide-y divide-muted">
+                  {contents.subfolders.map(sub => {
+                    const subPath = `${path}/${sub}`;
+                    return (
+                      <FolderRow
+                        key={subPath}
+                        path={subPath}
+                        label={sub}
+                        depth={depth + 1}
+                        projectId={projectId}
+                        expandedPaths={expandedPaths}
+                        folderContents={folderContents}
+                        renamingFolder={renamingFolder}
+                        renamingFile={renamingFile}
+                        creatingFolderIn={creatingFolderIn}
+                        newSubfolderName={newSubfolderName}
+                        onToggle={onToggle}
+                        onRenameFolder={onRenameFolder}
+                        onRenamefolderConfirm={onRenamefolderConfirm}
+                        onRenameFolderCancel={onRenameFolderCancel}
+                        onRenameFile={onRenameFile}
+                        onRenameFileConfirm={onRenameFileConfirm}
+                        onRenameFileCancel={onRenameFileCancel}
+                        onDeleteFile={onDeleteFile}
+                        onQuickView={onQuickView}
+                        onStartCreateFolder={onStartCreateFolder}
+                        onCancelCreateFolder={onCancelCreateFolder}
+                        onNewSubfolderNameChange={onNewSubfolderNameChange}
+                        onConfirmCreateFolder={onConfirmCreateFolder}
+                      />
+                    );
+                  })}
+                </ul>
+              )}
+
+              {/* Files */}
+              {contents.files.length > 0 && (
+                <ul className="space-y-1 p-3 pl-5">
+                  {contents.files.map(file => (
+                    <li key={file} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded-md group">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <FileJson className="w-4 h-4 text-emerald-500 shrink-0" />
+                        {renamingFile?.folder === path && renamingFile?.filename === file ? (
+                          <InlineRename
+                            value={file}
+                            maxLength={64}
+                            onConfirm={(val) => onRenameFileConfirm(path, file, val)}
+                            onCancel={onRenameFileCancel}
+                          />
+                        ) : (
+                          <span className="text-sm font-medium truncate">{file}</span>
+                        )}
+                      </div>
+                      {!(renamingFile?.folder === path && renamingFile?.filename === file) && (
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                          <button onClick={() => onQuickView(path, file)} className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md" title="Quick View">
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => onRenameFile(path, file)} className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md" title="Rename">
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <Link
+                            to={`/project/${projectId}/data/new?folder=${encodeURIComponent(path)}&filename=${encodeURIComponent(file)}`}
+                            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
+                            title="Edit"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Link>
+                          <button onClick={() => onDeleteFile(path, file)} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-red-50 rounded-md" title="Delete">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {contents.files.length === 0 && contents.subfolders.length === 0 && !isCreatingHere && (
+                <p className="text-sm text-muted-foreground italic px-5 py-3">Empty folder</p>
+              )}
+
+              {/* Inline new-subfolder input */}
+              {isCreatingHere && (
+                <div className="flex items-center gap-2 px-5 py-3 border-t">
+                  <Folder className="w-4 h-4 text-blue-400 shrink-0" />
+                  <input
+                    autoFocus
+                    type="text"
+                    value={newSubfolderName}
+                    onChange={e => onNewSubfolderNameChange(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') onConfirmCreateFolder(path);
+                      if (e.key === 'Escape') onCancelCreateFolder();
+                    }}
+                    placeholder="Folder name..."
+                    className="flex-1 text-sm bg-transparent border-b border-primary outline-none px-1"
+                  />
+                  <button onClick={() => onConfirmCreateFolder(path)} className="p-1 text-green-600 hover:bg-green-50 rounded"><Check className="w-4 h-4" /></button>
+                  <button onClick={onCancelCreateFolder} className="p-1 text-muted-foreground hover:bg-muted rounded"><X className="w-4 h-4" /></button>
+                </div>
+              )}
+
+              {/* Actions: New File + New Folder */}
+              {!isCreatingHere && (
+                <div className="flex items-center gap-2 px-5 py-3 border-t">
+                  <Link
+                    to={`/project/${projectId}/data/new?defaultFolder=${encodeURIComponent(path)}`}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    New File
+                  </Link>
+                  <span className="text-muted-foreground/40">·</span>
+                  <button
+                    onClick={() => onStartCreateFolder(path)}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    New Folder
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </li>
+  );
+}
+
 export default function ProjectDashboard() {
   const { projectId } = useParams();
   const navigate = useNavigate();
@@ -57,9 +247,14 @@ export default function ProjectDashboard() {
   const [posts, setPosts] = useState([]);
   const [sortBy, setSortBy] = useState('date-desc');
   const [dataFolders, setDataFolders] = useState([]);
-  const [expandedFolder, setExpandedFolder] = useState(null);
   const [postsExpanded, setPostsExpanded] = useState(false);
-  const [folderFiles, setFolderFiles] = useState({});
+  // { [path]: { files: string[], subfolders: string[] } }
+  const [folderContents, setFolderContents] = useState({});
+  // Set of currently expanded paths (root and/or nested)
+  const [expandedPaths, setExpandedPaths] = useState(new Set());
+  // { path: string } | null — which path has the inline "new folder" input open
+  const [creatingFolderIn, setCreatingFolderIn] = useState(null);
+  const [newSubfolderName, setNewSubfolderName] = useState('');
   const [loading, setLoading] = useState(true);
   const [previewPost, setPreviewPost] = useState(null);
   const [quickView, setQuickView] = useState(null); // { title, content }
@@ -171,15 +366,55 @@ export default function ProjectDashboard() {
     finally { setLoading(false); }
   };
 
-  const handleExpandFolder = async (folder) => {
-    if (expandedFolder === folder) { setExpandedFolder(null); return; }
-    setExpandedFolder(folder);
-    if (!folderFiles[folder]) {
-      try {
-        const res = await api.data.listFiles(projectId, folder);
-        if (res.success) setFolderFiles(prev => ({ ...prev, [folder]: res.data }));
-      } catch (err) { console.error(err); }
-    }
+  const loadFolderContents = async (path) => {
+    if (folderContents[path]) return;
+    try {
+      const res = await api.data.listFiles(projectId, path);
+      if (res.success) setFolderContents(prev => ({ ...prev, [path]: res.data }));
+    } catch (err) { console.error(err); }
+  };
+
+  const togglePath = async (path) => {
+    const isOpen = expandedPaths.has(path);
+    setExpandedPaths(prev => {
+      const next = new Set(prev);
+      if (isOpen) {
+        // collapse this path and all its children
+        for (const p of next) {
+          if (p === path || p.startsWith(path + '/')) next.delete(p);
+        }
+      } else {
+        next.add(path);
+      }
+      return next;
+    });
+    if (!isOpen) await loadFolderContents(path);
+  };
+
+  const handleCreateSubfolder = async (parentPath) => {
+    const name = newSubfolderName.trim();
+    if (!name) return;
+    try {
+      const res = await api.data.createSubfolder(projectId, parentPath, name);
+      if (res.success) {
+        // Add the new subfolder to the parent's contents, refresh root list if top-level
+        const isTopLevel = !parentPath.includes('/');
+        if (isTopLevel) {
+          setDataFolders(prev => prev.includes(parentPath) ? prev : [...prev, parentPath]);
+        }
+        setFolderContents(prev => {
+          const current = prev[parentPath] || { files: [], subfolders: [] };
+          return {
+            ...prev,
+            [parentPath]: { ...current, subfolders: [...current.subfolders, name] },
+          };
+        });
+      } else {
+        alert(res.error || 'Failed to create folder');
+      }
+    } catch (err) { alert('Failed to create folder'); }
+    setCreatingFolderIn(null);
+    setNewSubfolderName('');
   };
 
   const handleDeletePost = async (slug) => {
@@ -194,7 +429,10 @@ export default function ProjectDashboard() {
     if (!window.confirm(`Delete "${filename}"?`)) return;
     try {
       await api.data.delete(projectId, folder, filename);
-      setFolderFiles(prev => ({ ...prev, [folder]: prev[folder].filter(f => f !== filename) }));
+      setFolderContents(prev => ({
+        ...prev,
+        [folder]: { ...prev[folder], files: prev[folder].files.filter(f => f !== filename) },
+      }));
     } catch (err) { alert('Failed to delete file'); }
   };
 
@@ -205,12 +443,16 @@ export default function ProjectDashboard() {
       const res = await api.data.renameFolder(projectId, oldFolder, trimmed);
       if (res.success) {
         setDataFolders(prev => prev.map(f => (f === oldFolder ? trimmed : f)));
-        setFolderFiles(prev => {
+        setFolderContents(prev => {
           const updated = { ...prev };
           if (updated[oldFolder]) { updated[trimmed] = updated[oldFolder]; delete updated[oldFolder]; }
           return updated;
         });
-        if (expandedFolder === oldFolder) setExpandedFolder(trimmed);
+        setExpandedPaths(prev => {
+          const next = new Set(prev);
+          if (next.has(oldFolder)) { next.delete(oldFolder); next.add(trimmed); }
+          return next;
+        });
       } else { alert(res.error || 'Failed to rename folder'); }
     } catch (err) { alert('Failed to rename folder'); }
     setRenamingFolder(null);
@@ -223,9 +465,9 @@ export default function ProjectDashboard() {
       const res = await api.data.renameFile(projectId, folder, oldFilename, trimmed);
       if (res.success) {
         const final = res.newFilename || trimmed;
-        setFolderFiles(prev => ({
+        setFolderContents(prev => ({
           ...prev,
-          [folder]: prev[folder].map(f => (f === oldFilename ? final : f))
+          [folder]: { ...prev[folder], files: prev[folder].files.map(f => (f === oldFilename ? final : f)) },
         }));
       } else { alert(res.error || 'Failed to rename file'); }
     } catch (err) { alert('Failed to rename file'); }
@@ -429,36 +671,47 @@ export default function ProjectDashboard() {
                 <p className="text-muted-foreground text-sm mt-1">Create a book to organise documentation, guides, or any long-form content.</p>
               </div>
             ) : (
-              <ul className="space-y-2">
+              <ul className="space-y-3">
                 {books.map(book => (
-                  <li key={book.slug} className="flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-muted/30 transition-colors group">
+                  <li key={book.slug} className="relative border rounded-xl bg-card overflow-hidden group transition-shadow hover:shadow-sm">
                     <button
                       onClick={() => navigate(`/project/${projectId}/book/${book.slug}`)}
-                      className="flex items-center gap-3 flex-1 text-left min-w-0"
+                      className="w-full text-left"
                     >
-                      <BookOpen className="w-5 h-5 text-primary shrink-0" />
-                      <div className="min-w-0">
-                        <p className="font-semibold">{book.name}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <code className="text-xs text-muted-foreground font-mono">{book.slug}</code>
-                          {book.description && <span className="text-xs text-muted-foreground truncate">— {book.description}</span>}
-                        </div>
+                      {/* Name */}
+                      <div className="px-5 pt-4 pb-2">
+                        <h3 className="text-base font-semibold leading-tight">{book.name}</h3>
                       </div>
+
+                      {/* Meta bar */}
+                      <div className="w-full px-5 py-2 bg-muted/40 flex items-center gap-3">
+                        <code className="text-xs text-muted-foreground/70 font-mono">{book.slug}</code>
+                      </div>
+
+                      {/* Description */}
+                      {book.description && (
+                        <p className="px-5 pt-3 pb-4 text-sm text-muted-foreground leading-relaxed">
+                          {book.description}
+                        </p>
+                      )}
+                      {!book.description && <div className="pb-3" />}
                     </button>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+
+                    {/* Actions */}
+                    <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => setEditingBook({ slug: book.slug, name: book.name, description: book.description || '' })}
-                        className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                         title="Edit book info"
                       >
-                        <Pencil className="w-4 h-4" />
+                        <Pencil className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => setConfirmDeleteBook(book.slug)}
-                        className="p-2 rounded-md text-muted-foreground hover:text-destructive hover:bg-red-50 transition-colors"
+                        className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-red-50 transition-colors"
                         title="Delete book"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </li>
@@ -602,107 +855,35 @@ export default function ProjectDashboard() {
             ) : (
               <ul className="divide-y border rounded-lg overflow-hidden">
                 {dataFolders.map((folder) => (
-                <li key={folder} className="bg-card">
-                  {/* Folder row */}
-                  <div className="w-full p-4 flex items-center justify-between hover:bg-muted/30 transition-colors group">
-                    <button
-                      onClick={() => handleExpandFolder(folder)}
-                      className="flex items-center gap-3 flex-1 text-left"
-                    >
-                      <Folder className="w-5 h-5 text-blue-500 shrink-0" />
-                      {renamingFolder === folder ? (
-                        <InlineRename
-                          value={folder}
-                          onConfirm={(val) => handleRenameFolder(folder, val)}
-                          onCancel={() => setRenamingFolder(null)}
-                        />
-                      ) : (
-                        <span className="font-medium text-base">{folder}</span>
-                      )}
-                    </button>
-                    <div className="flex items-center gap-1">
-                      {renamingFolder !== folder && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setRenamingFolder(folder); }}
-                          className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                          title="Rename Folder"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                      )}
-                      <ChevronRight
-                        onClick={() => handleExpandFolder(folder)}
-                        className={`w-5 h-5 text-muted-foreground transition-transform cursor-pointer ${expandedFolder === folder ? 'rotate-90' : ''}`}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Expanded files */}
-                  {expandedFolder === folder && (
-                    <div className="bg-muted/30 border-t p-4">
-                      {!folderFiles[folder] ? (
-                        <p className="text-sm text-muted-foreground">Loading files...</p>
-                      ) : folderFiles[folder].length === 0 ? (
-                        <p className="text-sm text-muted-foreground italic">Empty folder</p>
-                      ) : (
-                        <ul className="space-y-2 pl-4 border-l-2 border-muted">
-                          {folderFiles[folder].map(file => (
-                            <li key={file} className="flex flex-row items-center justify-between p-2 hover:bg-muted/50 rounded-md transition-colors group">
-                              <div className="flex items-center gap-2 flex-1 min-w-0">
-                                <FileJson className="w-4 h-4 text-emerald-500 shrink-0" />
-                                {renamingFile?.folder === folder && renamingFile?.filename === file ? (
-                                  <InlineRename
-                                    value={file}
-                                    maxLength={64}
-                                    onConfirm={(val) => handleRenameFile(folder, file, val)}
-                                    onCancel={() => setRenamingFile(null)}
-                                  />
-                                ) : (
-                                  <span className="text-sm font-medium truncate">{file}</span>
-                                )}
-                              </div>
-                              {!(renamingFile?.folder === folder && renamingFile?.filename === file) && (
-                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                                  <button
-                                    onClick={() => handleQuickView(folder, file)}
-                                    className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
-                                    title="Quick View JSON"
-                                  >
-                                    <Eye className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => setRenamingFile({ folder, filename: file })}
-                                    className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
-                                    title="Rename File"
-                                  >
-                                    <Pencil className="w-4 h-4" />
-                                  </button>
-                                  <Link
-                                    to={`/project/${projectId}/data/new?folder=${encodeURIComponent(folder)}&filename=${encodeURIComponent(file)}`}
-                                    className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
-                                    title="Edit File"
-                                  >
-                                    <Edit className="w-4 h-4" />
-                                  </Link>
-                                  <button
-                                    onClick={() => handleDeleteDataFile(folder, file)}
-                                    className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-red-50 rounded-md"
-                                    title="Delete File"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
+                  <FolderRow
+                    key={folder}
+                    path={folder}
+                    label={folder}
+                    depth={0}
+                    projectId={projectId}
+                    expandedPaths={expandedPaths}
+                    folderContents={folderContents}
+                    renamingFolder={renamingFolder}
+                    renamingFile={renamingFile}
+                    creatingFolderIn={creatingFolderIn}
+                    newSubfolderName={newSubfolderName}
+                    onToggle={togglePath}
+                    onRenameFolder={(path) => setRenamingFolder(path)}
+                    onRenamefolderConfirm={handleRenameFolder}
+                    onRenameFolderCancel={() => setRenamingFolder(null)}
+                    onRenameFile={(folder, file) => setRenamingFile({ folder, filename: file })}
+                    onRenameFileConfirm={handleRenameFile}
+                    onRenameFileCancel={() => setRenamingFile(null)}
+                    onDeleteFile={handleDeleteDataFile}
+                    onQuickView={handleQuickView}
+                    onStartCreateFolder={(path) => { setCreatingFolderIn(path); setNewSubfolderName(''); }}
+                    onCancelCreateFolder={() => { setCreatingFolderIn(null); setNewSubfolderName(''); }}
+                    onNewSubfolderNameChange={setNewSubfolderName}
+                    onConfirmCreateFolder={handleCreateSubfolder}
+                  />
+                ))}
+              </ul>
+            )}
         </>
         )}
       </div>

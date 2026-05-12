@@ -38,14 +38,18 @@ Unlike traditional CMS platforms, **Static CMS** has:
 
 ---
 
-## 🏗️ Architecture (Monorepo)
+## 🏗️ Architecture
 
-The repository is structured as a single monorepo:
+This repo contains the **local CMS editor only** — two services that run on your machine:
 
 - 🎨 **`/frontend`** — A Vite + React application providing the visual interface to manage projects, edit markdown, manage books, and publish.
 - ⚙️ **`/backend`** — An Express.js server that handles local file generation, front-matter parsing, asset uploads, and Git synchronisation.
-- 📁 **`/projects`** — The root data folder. This is where all your posts, books, assets, config, and generated JSON metadata live.
-- 📦 **`/packages/client`** — A zero-dependency JavaScript SDK (`blog-database-github-client`) to drop into your live website and fetch data easily.
+
+> **`/projects`** is not included in this repo. It is created automatically on your machine when you create your first project in the CMS, and you push it to your own GitHub repository.
+
+The SDK for consuming your content on a live website is a **separate published npm package**:
+
+📦 **[blog-database-github-client](https://github.com/sumitpal29/blog-database-github-client)** — install it in your website project, not here.
 
 ---
 
@@ -96,8 +100,14 @@ Once the server is running, navigate to the local Frontend link.
 
 Now that your data is neatly pushed to GitHub, you can consume it on your actual live website (Next.js, React, Vanilla JS, etc.) using the built-in SDK.
 
+### Installation
+
+```bash
+npm install blog-database-github-client
+```
+
 ### Why the SDK?
-The SDK (`blog-database-github-client`) handles pagination, caching, URL building, and front-matter parsing entirely on the client, pulling directly from GitHub.
+The SDK handles pagination, caching, URL building, and front-matter parsing entirely on the client, pulling directly from GitHub.
 
 ### Example Usage:
 
